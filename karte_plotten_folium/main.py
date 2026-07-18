@@ -34,7 +34,7 @@ def main():
     track.kennzahlen_ausgeben()
     print()
 
-    # --- 1b. Strecke auf Karte plotten (folium, interaktiv) ---------------
+    # --- 1b. Strecke auf Karte plotten (folium) --------------------------
     # Färbt die Strecke nach Geschwindigkeit ein und speichert eine
     # interaktive HTML-Karte, die sich im Browser öffnen lässt.
     track.karte_erstellen(
@@ -58,14 +58,12 @@ def main():
         ergebnis_df = sim.simulate()
         sim.zusammenfassung_ausgeben()
 
-        # Ladezustand entlang der Strecke auf eigener Karte darstellen
-        # (einmal interaktiv mit folium, einmal statisch mit geopandas).
+        # Ladezustand entlang der Strecke auf eigener Karte darstellen.
         track.karte_erstellen(
             df=ergebnis_df,
             farbwert="soc",
             ausgabepfad=f"output/karte_soc_{name.lower()}.html",
         )
-    
         print()
 
 

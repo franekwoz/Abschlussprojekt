@@ -1,2 +1,8 @@
 pandas
 numpy
+folium
+branca
+geopandas
+shapely
+contextily
+matplotlib
