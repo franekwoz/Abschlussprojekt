@@ -1,8 +1,10 @@
 """luftdichte.py
-
-
-
-
+-------------
+Bestimmt die Luftdichte aus Höhe über dem Meeresspiegel und Temperatur,
+statt der in ebike.py bisher fest angenommenen Konstante RHO_LUFT = 1.225
+kg/m^3 (Meereshöhe, ca. 15°C). Kombiniert die barometrische Höhenformel
+(der Luftdruck nimmt mit der Höhe exponentiell ab) mit dem idealen
+Gasgesetz (Dichte aus Druck und Temperatur).
 """
 
 import math 
