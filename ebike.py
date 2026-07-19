@@ -48,9 +48,10 @@ class EBike:
         self.cw_a = cw_a_m2
         self.radradius_m = (raddurchmesser_inch * 0.0254) / 2   # Zoll -> Meter, Durchmesser -> Radius
 
-    def luftwiderstand_N(self, v_ms: float) -> float:
+    def luftwiderstand_N(self, v_ms: float, luftdichte_kg_m3: float | None = None) -> float:
         """F_D = 0.5 * rho * cW*A * v^2"""
-        return 0.5 * self.RHO_LUFT * self.cw_a * v_ms ** 2
+        rho = luftdichte_kg_m3 if luftdichte_kg_m3 is not None else self.RHO_LUFT
+        return 0.5 * rho * self.cw_a * v_ms ** 2
 
     def hangabtriebskraft_N(self, phi_grad: float) -> float:
         """F_H = m * g * sin(phi)"""
@@ -60,10 +61,10 @@ class EBike:
         """F_a = m * a"""
         return self.masse_gesamt_kg * a_ms2
 
-    def antriebskraft_N(self, v_ms: float, a_ms2: float, phi_grad: float) -> float:
+    def antriebskraft_N(self, v_ms: float, a_ms2: float, phi_grad: float, luftdichte_kg_m3: float|None = None) -> float:
         """Kräftegleichgewicht: F_Antrieb = F_Luftwiderstand + F_Hangabtrieb + F_Beschleunigung"""
         return (
-            self.luftwiderstand_N(v_ms)
+            self.luftwiderstand_N(v_ms, luftdichte_kg_m3)
             + self.hangabtriebskraft_N(phi_grad)
             + self.beschleunigungskraft_N(a_ms2)
         )
@@ -75,10 +76,10 @@ class EBike:
         """Drehmoment am Antriebsrad = Kraft * Radradius"""
         return kraft_N * self.radradius_m
 
-    def punkt_auswerten(self, v_ms: float, a_ms2: float, phi_grad: float) -> dict:
+    def punkt_auswerten(self, v_ms: float, a_ms2: float, phi_grad: float, luftdichte_kg_m3: float | None = None) -> dict:
         """Berechnet für einen gegebenen Fahrzustand (v, a, phi) Kraft,
         Leistung und Drehmoment auf einmal. Wird pro GPS-Punkt aufgerufen."""
-        F = self.antriebskraft_N(v_ms, a_ms2, phi_grad)
+        F = self.antriebskraft_N(v_ms, a_ms2, phi_grad, luftdichte_kg_m3)
         return {
             "kraft_N": F,
             "leistung_W": self.leistung_W(F, v_ms),

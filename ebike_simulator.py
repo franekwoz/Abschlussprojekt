@@ -25,6 +25,7 @@ from battery_base import BatteryBase
 from motor import Motor
 from ebike import EBike
 from gps_track import GPSTrack
+from luftdichte import luftdichte_kg_m3
 
 logger = logging.getLogger(__name__)
 
@@ -81,7 +82,16 @@ class EBikeSimulator:
             phi = df["steigung_grad"].iloc[i]
             dt = (df["time"].iloc[i] - df["time"].iloc[i - 1]).total_seconds()
 
-            werte = self.bike.punkt_auswerten(v, a, phi)
+            rho = None
+            hoehe = df["ele"].iloc[i] if "ele" in df.columns else None
+            temperatur = df["temperature"].iloc[i] if "temperature" in df.columns else None
+            if hoehe is not None and temperatur is not None and pd.notna(hoehe) and pd.notna(temperatur):
+                try:
+                    rho = luftdichte_kg_m3(hoehe, temperatur)
+                except ValueError:
+                    logger.warning(f"Ungültige Höhe/Temperatur bei Index {i}, verwende Standard-Luftdichte.")
+
+            werte = self.bike.punkt_auswerten(v, a, phi, rho)
             strom = self.motor.get_current_draw(werte["drehmoment_Nm"])
 
             if dt > 0:
