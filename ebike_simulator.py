@@ -93,6 +93,8 @@ class EBikeSimulator:
 
             werte = self.bike.punkt_auswerten(v, a, phi, rho)
             strom = self.motor.get_current_draw(werte["drehmoment_Nm"])
+            if temperatur is not None and pd.notna(temperatur):
+                self.battery.set_temperatur(temperatur)
 
             if dt > 0:
                 try:
