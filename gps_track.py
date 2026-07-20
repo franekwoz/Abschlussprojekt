@@ -123,6 +123,7 @@ class GPSTrack:
         ausgabepfad: str = "track_karte.html",
         zoom_start: int = 14,
         kartenstil: str = "cartodbpositron",
+
     ):
         """
         Erstellt eine interaktive HTML-Karte (Leaflet über `folium`) mit der
@@ -140,17 +141,6 @@ class GPSTrack:
                 'soc', 'spannung_V', 'motorstrom_A').
             ausgabepfad (str): Pfad der zu speichernden HTML-Datei.
             zoom_start (int): Anfangs-Zoomstufe der Karte.
-            kartenstil (str): Name des Karten-Hintergrunds (folium-Tile-Name).
-                Standard 'cartodbpositron', NICHT 'OpenStreetMap': Der
-                offizielle OSM-Tile-Server verlangt inzwischen einen
-                Referer-Header, den Browser beim direkten Öffnen einer
-                lokalen HTML-Datei (file://...) nicht mitschicken - die
-                Kacheln werden dann mit "403 Access blocked" abgelehnt.
-                CartoDB-Kacheln funktionieren auch ohne Referer, deshalb als
-                Standard gesetzt. 'OpenStreetMap' funktioniert weiterhin,
-                wenn die Datei über einen echten Webserver aufgerufen wird
-                (z.B. `python -m http.server` im output-Ordner, dann
-                http://localhost:8000/... im Browser öffnen).
 
         Rückgabe:
             folium.Map: das erzeugte Karten-Objekt (zusätzlich zum Speichern
@@ -170,7 +160,7 @@ class GPSTrack:
 
         mitte_lat = df["lat"].mean()
         mitte_lon = df["lon"].mean()
-        karte = folium.Map(location=[mitte_lat, mitte_lon], zoom_start=zoom_start, tiles=kartenstil)
+        karte = folium.Map(location=[mitte_lat, mitte_lon], zoom_start=zoom_start, tiles="OpenStreetMap")
 
         werte = df[farbwert]
         farbskala = cm.LinearColormap(
@@ -203,186 +193,3 @@ class GPSTrack:
         karte.save(ausgabepfad)
         logger.info(f"Karte gespeichert unter: {ausgabepfad}")
         return karte
-
-    # ------------------------------------------------------------------
-    # Kartendarstellung (geopandas) - Alternative zu karte_erstellen()
-    # ------------------------------------------------------------------
-    def karte_erstellen_geopandas(
-        self,
-        df: pd.DataFrame = None,
-        farbwert: str = "geschwindigkeit_ms",
-        ausgabepfad: str = "track_karte_geopandas.png",
-        mit_basiskarte: bool = True,
-        cmap: str = "viridis",
-    ):
-        """
-        Erstellt eine statische Kartendarstellung der Strecke mit GeoPandas
-        + Matplotlib - inhaltlich das Gleiche wie karte_erstellen(), nur
-        als GIS-taugliches GeoDataFrame statt als interaktive Leaflet-Karte.
-
-        Vorgehen: pro Zeitschritt wird ein Liniensegment (shapely.LineString)
-        zwischen zwei aufeinanderfolgenden GPS-Punkten erzeugt und mit dem
-        Wert aus `farbwert` verknüpft. Die Segmente werden zu einem
-        GeoDataFrame zusammengefasst und farbcodiert geplottet - dadurch
-        entsteht optisch die gleiche "Regenbogen-Strecke" wie bei folium,
-        aber als Vektordaten (georeferenziert, exportierbar z.B. als
-        GeoJSON/Shapefile für QGIS & Co., siehe gdf.to_file(...)).
-
-        Parameter:
-            df, farbwert: wie bei karte_erstellen()
-            ausgabepfad (str): Pfad der zu speichernden PNG-Datei
-            mit_basiskarte (bool): ob ein OpenStreetMap-Hintergrund über
-                `contextily` geladen werden soll. Benötigt Internetzugriff;
-                schlägt das Laden fehl, wird automatisch ohne Hintergrund
-                weitergemacht (nur die Strecke selbst, kein Fehlerabbruch).
-            cmap (str): Matplotlib-Farbschema (z.B. 'viridis', 'plasma',
-                'coolwarm')
-
-        Rückgabe:
-            geopandas.GeoDataFrame: Liniensegmente inkl. Attributwert -
-            kann z.B. direkt weiter für GIS-Analysen oder Export genutzt
-            werden.
-        """
-        import geopandas as gpd
-        from shapely.geometry import LineString
-        import matplotlib.pyplot as plt
-
-        if df is None:
-            df = self.df
-
-        if farbwert not in df.columns:
-            raise ValueError(
-                f"Spalte '{farbwert}' nicht im DataFrame vorhanden. "
-                f"Verfügbare Spalten: {list(df.columns)}"
-            )
-
-        # Liniensegmente + zugehörigen Wert pro Segment sammeln
-        segmente = []
-        werte = []
-        for i in range(len(df) - 1):
-            punkt_a = (df["lon"].iloc[i], df["lat"].iloc[i])
-            punkt_b = (df["lon"].iloc[i + 1], df["lat"].iloc[i + 1])
-            segmente.append(LineString([punkt_a, punkt_b]))
-            werte.append(df[farbwert].iloc[i])
-
-        # GeoDataFrame in WGS84 (Grad, wie GPS-Rohdaten) anlegen ...
-        gdf = gpd.GeoDataFrame({farbwert: werte, "geometry": segmente}, crs="EPSG:4326")
-        # ... und für die Basiskarten-Kompatibilität nach Web-Mercator umprojizieren
-        gdf_web = gdf.to_crs(epsg=3857)
-
-        fig, ax = plt.subplots(figsize=(10, 10))
-        gdf_web.plot(
-            column=farbwert,
-            cmap=cmap,
-            linewidth=3,
-            legend=True,
-            ax=ax,
-            legend_kwds={"label": farbwert, "shrink": 0.7},
-        )
-
-        if mit_basiskarte:
-            try:
-                import contextily as cx
-                cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, crs=gdf_web.crs.to_string())
-            except Exception as fehler:
-                logger.warning(
-                    f"Basiskarte konnte nicht geladen werden ({fehler}) - "
-                    "Plot wird ohne Kartenhintergrund gespeichert."
-                )
-
-        ax.set_title(f"Streckenverlauf eingefärbt nach: {farbwert}")
-        ax.set_axis_off()
-        fig.tight_layout()
-        fig.savefig(ausgabepfad, dpi=200)
-        plt.close(fig)
-
-        logger.info(f"Karte (GeoPandas) gespeichert unter: {ausgabepfad}")
-        return gdf
-
-    # ------------------------------------------------------------------
-    # Kartendarstellung (geopandas) - einfache Variante OHNE Einfärbung
-    # ------------------------------------------------------------------
-    def karte_erstellen_geopandas_einfach(
-        self,
-        df: pd.DataFrame = None,
-        ausgabepfad: str = "track_karte_geopandas_einfach.png",
-        mit_basiskarte: bool = True,
-        linienfarbe: str = "royalblue",
-    ):
-        """
-        Vereinfachte GeoPandas-Kartendarstellung OHNE farbliche Einfärbung
-        nach einem Messwert - zeigt nur den reinen Streckenverlauf als
-        einheitlich eingefärbte Linie, plus Start- und Zielpunkt.
-
-        Unterschied zu karte_erstellen_geopandas(): dort wird die Strecke in
-        einzelne Segmente zerlegt, damit jedes Segment individuell nach einem
-        Messwert eingefärbt werden kann. Hier ist das nicht nötig, deshalb
-        wird die GESAMTE Strecke als EIN einziges LineString-Objekt behandelt -
-        einfacher, schneller und mit kleinerer Ausgabedatei, wenn nur der
-        reine Streckenverlauf interessiert (ohne Geschwindigkeit/SoC/etc.).
-
-        Parameter:
-            df (pd.DataFrame | None): Zu plottende Daten. Wenn None, wird
-                self.df verwendet. Erwartet werden die Spalten 'lat'/'lon'.
-            ausgabepfad (str): Pfad der zu speichernden PNG-Datei.
-            mit_basiskarte (bool): ob ein OpenStreetMap-Hintergrund über
-                `contextily` geladen werden soll (mit automatischem Fallback,
-                falls kein Internetzugriff auf die Kartenkacheln möglich ist).
-            linienfarbe (str): Matplotlib-Farbname oder Hex-Code für die
-                Streckenlinie (z.B. 'royalblue', 'black', '#FF5733').
-
-        Rückgabe:
-            geopandas.GeoDataFrame: enthält genau eine Zeile mit der
-            gesamten Strecke als LineString-Geometrie - z.B. praktisch für
-            den Export als GeoJSON/Shapefile (gdf.to_file(...)).
-        """
-        import geopandas as gpd
-        from shapely.geometry import LineString, Point
-        import matplotlib.pyplot as plt
-
-        if df is None:
-            df = self.df
-
-        # Gesamte Strecke als EIN LineString (statt einzelner Segmente),
-        # da keine Einfärbung pro Abschnitt nötig ist.
-        koordinaten = list(zip(df["lon"], df["lat"]))
-        strecke = LineString(koordinaten)
-
-        gdf = gpd.GeoDataFrame({"name": ["Strecke"], "geometry": [strecke]}, crs="EPSG:4326")
-        gdf_web = gdf.to_crs(epsg=3857)
-
-        # Start-/Zielpunkt als eigenes kleines GeoDataFrame für die Marker
-        start_ziel = gpd.GeoDataFrame(
-            {"typ": ["Start", "Ziel"]},
-            geometry=[Point(koordinaten[0]), Point(koordinaten[-1])],
-            crs="EPSG:4326",
-        ).to_crs(epsg=3857)
-
-        fig, ax = plt.subplots(figsize=(10, 10))
-        gdf_web.plot(ax=ax, color=linienfarbe, linewidth=3)
-        start_ziel.plot(ax=ax, color=["green", "red"], markersize=100, zorder=5, edgecolor="black")
-
-        for x, y, label in zip(start_ziel.geometry.x, start_ziel.geometry.y, start_ziel["typ"]):
-            ax.annotate(
-                label, xy=(x, y), xytext=(6, 6), textcoords="offset points",
-                fontsize=10, fontweight="bold",
-            )
-
-        if mit_basiskarte:
-            try:
-                import contextily as cx
-                cx.add_basemap(ax, source=cx.providers.OpenStreetMap.Mapnik, crs=gdf_web.crs.to_string())
-            except Exception as fehler:
-                logger.warning(
-                    f"Basiskarte konnte nicht geladen werden ({fehler}) - "
-                    "Plot wird ohne Kartenhintergrund gespeichert."
-                )
-
-        ax.set_title("Streckenverlauf")
-        ax.set_axis_off()
-        fig.tight_layout()
-        fig.savefig(ausgabepfad, dpi=200)
-        plt.close(fig)
-
-        logger.info(f"Karte (GeoPandas, ohne Einfärbung) gespeichert unter: {ausgabepfad}")
-        return gdf

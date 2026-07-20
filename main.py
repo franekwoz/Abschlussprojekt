@@ -37,10 +37,12 @@ def main():
     # --- 1b. Strecke auf Karte plotten (folium, interaktiv) ---------------
     # Färbt die Strecke nach Geschwindigkeit ein und speichert eine
     # interaktive HTML-Karte, die sich im Browser öffnen lässt.
+    print("=== Kartenerstellung ===")
     track.karte_erstellen(
         farbwert="geschwindigkeit_ms",
         ausgabepfad="output/karte_strecke.html",
     )
+    print("✓ Streckenkartenette erstellt")
 
     # --- 2. Fahrzeug & Motor definieren -----------------------------------
     bike = EBike(masse_fahrer_kg=70.0, masse_rad_kg=10.0, cw_a_m2=0.5625, raddurchmesser_inch=27.0)
@@ -65,6 +67,7 @@ def main():
             farbwert="soc",
             ausgabepfad=f"output/karte_soc_{name.lower()}.html",
         )
+        print(f"✓ SOC-Karte für {name}-Akku erstellt")
     
         print()
 
