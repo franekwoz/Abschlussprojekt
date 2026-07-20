@@ -43,14 +43,17 @@ class EBike:
         masse_rad_kg: float = 10.0,
         cw_a_m2: float = 0.5625,
         raddurchmesser_inch: float = 27.0,
+        rollwiderstandkoeffizient: float = 0.005,
     ):
         self.masse_gesamt_kg = masse_fahrer_kg + masse_rad_kg
         self.cw_a = cw_a_m2
         self.radradius_m = (raddurchmesser_inch * 0.0254) / 2   # Zoll -> Meter, Durchmesser -> Radius
+        self.rollwiderstandkoeffizient = rollwiderstandkoeffizient
 
-    def luftwiderstand_N(self, v_ms: float) -> float:
+    def luftwiderstand_N(self, v_ms: float, luftdichte_kg_m3: float | None = None) -> float:
         """F_D = 0.5 * rho * cW*A * v^2"""
-        return 0.5 * self.RHO_LUFT * self.cw_a * v_ms ** 2
+        rho = luftdichte_kg_m3 if luftdichte_kg_m3 is not None else self.RHO_LUFT
+        return 0.5 * rho * self.cw_a * v_ms ** 2
 
     def hangabtriebskraft_N(self, phi_grad: float) -> float:
         """F_H = m * g * sin(phi)"""
@@ -59,13 +62,18 @@ class EBike:
     def beschleunigungskraft_N(self, a_ms2: float) -> float:
         """F_a = m * a"""
         return self.masse_gesamt_kg * a_ms2
+    
+    def rollwiderstand_N(self, phi_grad: float) -> float:
+        """F_R = c_R * m * g * cos(phi)"""
+        return self.rollwiderstandkoeffizient * self.masse_gesamt_kg * self.G * math.cos(math.radians(phi_grad))    
 
-    def antriebskraft_N(self, v_ms: float, a_ms2: float, phi_grad: float) -> float:
+    def antriebskraft_N(self, v_ms: float, a_ms2: float, phi_grad: float, luftdichte_kg_m3: float|None = None) -> float:
         """Kräftegleichgewicht: F_Antrieb = F_Luftwiderstand + F_Hangabtrieb + F_Beschleunigung"""
         return (
-            self.luftwiderstand_N(v_ms)
+            self.luftwiderstand_N(v_ms, luftdichte_kg_m3)
             + self.hangabtriebskraft_N(phi_grad)
             + self.beschleunigungskraft_N(a_ms2)
+            + self.rollwiderstand_N(phi_grad)
         )
 
     def leistung_W(self, kraft_N: float, v_ms: float) -> float:
@@ -75,10 +83,11 @@ class EBike:
         """Drehmoment am Antriebsrad = Kraft * Radradius"""
         return kraft_N * self.radradius_m
 
-    def punkt_auswerten(self, v_ms: float, a_ms2: float, phi_grad: float) -> dict:
+    def punkt_auswerten(self, v_ms: float, a_ms2: float, phi_grad: float, luftdichte_kg_m3: float | None = None) -> dict:
         """Berechnet für einen gegebenen Fahrzustand (v, a, phi) Kraft,
         Leistung und Drehmoment auf einmal. Wird pro GPS-Punkt aufgerufen."""
-        F = self.antriebskraft_N(v_ms, a_ms2, phi_grad)
+        F = self.antriebskraft_N(v_ms, a_ms2, phi_grad, luftdichte_kg_m3)
+        F_roll = self.rollwiderstand_N(phi_grad)
         return {
             "kraft_N": F,
             "leistung_W": self.leistung_W(F, v_ms),
