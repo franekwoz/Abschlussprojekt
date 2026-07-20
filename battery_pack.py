@@ -19,6 +19,10 @@ Modell bleibt.
 
 import logging
 from battery_base import BatteryBase
+from akkutemperatur import (
+    temperaturkorrigierter_innenwiderstand_ohm,
+    temperaturkorrigierte_kapazitaet_as,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -52,6 +56,7 @@ class BatteryPack(BatteryBase):
 
         self.Vmin = Vmin
         self.Vmax = Vmax
+        self.temperature_c: float | None = None
 
     # ------------------------------------------------------------------
     # _ocv() ist KEIN Bestandteil des Kurs-Interfaces, sondern eine
@@ -61,14 +66,24 @@ class BatteryPack(BatteryBase):
     # duplizieren. Das Verhalten nach außen (voltage()) bleibt exakt
     # gleich wie im Kurs-Vorbild.
     # ------------------------------------------------------------------
+    def set_temperatur(self, temperature_c: float | None = None) -> None:
+        """Aktualisiert die aktuelle Akkutemperatur, die R_int/C_nom skaliert."""
+        self.temperature_c = temperature_c
+    
     def _ocv(self, soc: float) -> float:
         """Leerlaufspannung: linear zwischen Vmin (SoC=0) und Vmax (SoC=1)."""
         return self.Vmin + soc * (self.Vmax - self.Vmin)
 
     def voltage(self, current: float = 0.0) -> float:
-        """Klemmenspannung unter Last: U = U_OC(SoC) - R_int * I"""
-        return self._ocv(self.soc) - self.R_int * current
+        """Klemmenspannung unter Last: U = U_OC(SoC) - R_int * I
+        Erweiterung: R_int wird temperaturkorrigiert
+        """
+        r_int = self.R_int
+        if self.temperature_c is not None:
+            r_int = temperaturkorrigierter_innenwiderstand_ohm(self.R_int, self.temperature_c)
+        return self._ocv(self.soc) - r_int * current
 
+   
     def apply_current(self, current: float, duration: float) -> None:
         """
         Aktualisiert den SoC nach der Formel aus Kapitel 09.2:
@@ -81,7 +96,11 @@ class BatteryPack(BatteryBase):
             logger.error("Akku ist leer (SoC = 0%%) - Entladung nicht mehr möglich.")
             raise RuntimeError("Akku vollständig entladen (SoC = 0).")
 
-        dsoc = -(current * duration) / self.C_nom
+        c_nom = self.C_nom
+        if self.temperature_c is not None:
+            c_nom = temperaturkorrigierte_kapazitaet_as(self.C_nom, self.temperature_c)
+
+        dsoc = -(current * duration) / c_nom
         neuer_soc = self.soc + dsoc
 
         if neuer_soc > 1.0:
