@@ -18,6 +18,7 @@ Modell bleibt.
 """
 
 import logging
+from bremswiderstand import dissipierte_leistung_W
 from battery_base import BatteryBase
 from akkutemperatur import (
     temperaturkorrigierter_innenwiderstand_ohm,
@@ -57,6 +58,7 @@ class BatteryPack(BatteryBase):
         self.Vmin = Vmin
         self.Vmax = Vmax
         self.temperature_c: float | None = None
+        self.letzte_dissipierte_leistung_w: float = 0.0 # zuletzt über Bremswiderstand dissipierte Leistung
 
     # ------------------------------------------------------------------
     # _ocv() ist KEIN Bestandteil des Kurs-Interfaces, sondern eine
@@ -103,14 +105,17 @@ class BatteryPack(BatteryBase):
         dsoc = -(current * duration) / c_nom
         neuer_soc = self.soc + dsoc
 
+        self.letzte_dissipierte_leistung_W = 0.0
         if neuer_soc > 1.0:
+            dsoc_erlaubt = 1.0 - self.soc   # wie viel SoC-Anstieg passt noch, bevor der Akku voll ist
+            strom_erlaubt = -dsoc_erlaubt * c_nom / duration if duration > 0.0 else 0.0
+            ueberschuss_strom_a = strom_erlaubt - current   # current ist negativer (mehr Ladestrom) als erlaubt
+            self.letzte_dissipierte_leistung_W = dissipierte_leistung_W(ueberschuss_strom_a, self.voltage(strom_erlaubt))
             logger.warning(
-                "Ladezustand würde 100%% überschreiten - wird begrenzt "
-                "(überschüssige Energie müsste z.B. in einem Bremswiderstand dissipiert werden)."
+                "Ladezustand würde 100%% überschreiten - wird begrenzt. "
+                f"{self.letzte_dissipierte_leistung_W:.1f} W werden über einen Bremswiderstand dissipiert."
             )
-        elif neuer_soc < 0.0:
-            logger.warning("Ladezustand würde unter 0%% fallen - wird auf 0%% begrenzt.")
-
+       
         self.soc = max(0.0, min(neuer_soc, 1.0))   # SoC hart auf [0, 1] begrenzen
 
     def is_empty(self) -> bool:

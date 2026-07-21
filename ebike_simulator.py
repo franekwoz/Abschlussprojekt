@@ -58,6 +58,7 @@ class EBikeSimulator:
         self.strom_profile: list[float] = []
         self.spannung_profile: list[float] = []
         self.soc_profile: list[float] = []
+        self.bremswiderstand_profile: list[float] = []  
 
     def simulate(self) -> pd.DataFrame:
         """
@@ -75,6 +76,7 @@ class EBikeSimulator:
         self.strom_profile = [0.0]
         self.spannung_profile = [self.battery.voltage()]
         self.soc_profile = [self.battery.soc]
+        self.bremswiderstand_profile = [0.0]  
 
         for i in range(1, n):
             v = df["geschwindigkeit_ms"].iloc[i]
@@ -96,9 +98,11 @@ class EBikeSimulator:
             if temperatur is not None and pd.notna(temperatur):
                 self.battery.set_temperatur(temperatur)
 
+            diessipierte_leistung = 0.0
             if dt > 0:
                 try:
                     self.battery.apply_current(strom, dt)
+                    dissipierte_leistung = self.battery.letzte_dissipierte_leistung_W
                 except RuntimeError:
                     logger.error(f"Simulation bei Index {i} abgebrochen: Akku leer.")
                     letzter_gueltiger_index = i - 1
@@ -109,6 +113,7 @@ class EBikeSimulator:
             self.strom_profile.append(strom)
             self.spannung_profile.append(self.battery.voltage(strom))
             self.soc_profile.append(self.battery.soc)
+            self.bremswiderstand_profile.append(dissipierte_leistung)
 
         df_ergebnis = df.iloc[: letzter_gueltiger_index + 1].copy()
         df_ergebnis["leistung_W"] = self.leistung_profile
@@ -121,6 +126,16 @@ class EBikeSimulator:
     def maximalleistung_W(self) -> float:
         return max(self.leistung_profile) if self.leistung_profile else 0.0
 
+    def bremswiderstand_energie_Wh(self) -> float:
+        """Über die gesamte Fahrt als Wärme dissipierte Energie (Wattstunden)."""
+        df = self.track.df
+        gesamtenergie_Wh = 0.0
+        for i in range(1, len(self.bremswiderstand_profile)):
+            dt = (df["time"].iloc[i] - df["time"].iloc[i - 1]).total_seconds()
+            if dt > 0:
+                gesamtenergie_Wh += self.bremswiderstand_profile[i] * dt
+        return gesamtenergie_Wh / 3600.0  # von Ws in Wh umrechnen
+
     def endladezustand_prozent(self) -> float:
         return self.soc_profile[-1] * 100 if self.soc_profile else self.battery.soc * 100
 
@@ -128,3 +143,4 @@ class EBikeSimulator:
         print(f"Akku:                {self.battery}")
         print(f"Maximalleistung:     {self.maximalleistung_W():.1f} W")
         print(f"Ladezustand am Ende: {self.endladezustand_prozent():.1f} %")
+        print(f"Bremswiderstand:     {self.bremswiderstand_energie_Wh():.2f} Wh dissipiert")
