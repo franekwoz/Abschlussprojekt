@@ -74,6 +74,8 @@ Additionally, static PNG plots are generated in `output/plot/`:
 - `output/plot/zeitverlauf_nmc.png` with speed, power, state of charge, current and voltage over time (NMC)
 - `output/plot/ladezustand_vergleich.png` for SoC comparison of battery types over time
 
+The program also writes a log file to `output/ebike_simulation.log` with the same timestamped messages that appear in the console.
+
 The output folder is created automatically if it does not exist.
 
 ## Project Structure

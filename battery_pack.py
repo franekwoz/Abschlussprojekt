@@ -18,6 +18,7 @@ Modell bleibt.
 """
 
 import logging
+import math
 from battery_base import BatteryBase
 from akkutemperatur import (
     temperaturkorrigierter_innenwiderstand_ohm,
@@ -49,8 +50,15 @@ class BatteryPack(BatteryBase):
     ):
         if capacity_nom_Ah <= 0:
             raise ValueError("capacity_nom_Ah muss > 0 sein.")
+        if not math.isfinite(initial_soc):
+            raise ValueError("initial_soc muss eine endliche Zahl sein.")
 
         self.C_nom = capacity_nom_Ah * (60.0 * 60.0)   # Ah -> As (SI-Einheit)
+        if initial_soc < 0.0 or initial_soc > 1.0:
+            logger.warning(
+                "Initialer Ladezustand %.3f liegt außerhalb von [0, 1] und wird begrenzt.",
+                initial_soc,
+            )
         self.soc = max(0.0, min(initial_soc, 1.0))       # Anfangs-SoC auf [0,1] begrenzen
         self.R_int = internal_resistance_mOhm * 1e-3      # mOhm -> Ohm
 
@@ -92,6 +100,13 @@ class BatteryPack(BatteryBase):
         Erweiterung ggü. Kurs-Vorbild (siehe Modulkopf): Logging bei
         Grenzfällen + Abbruch bei vollständig entladenem Akku.
         """
+        if not math.isfinite(current):
+            raise ValueError("current muss eine endliche Zahl sein.")
+        if not math.isfinite(duration):
+            raise ValueError("duration muss eine endliche Zahl sein.")
+        if duration < 0:
+            raise ValueError("duration muss >= 0 sein.")
+
         if self.is_empty() and current > 0:
             logger.error("Akku ist leer (SoC = 0%%) - Entladung nicht mehr möglich.")
             raise RuntimeError("Akku vollständig entladen (SoC = 0).")

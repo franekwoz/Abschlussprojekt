@@ -16,17 +16,24 @@ from nmc_battery import NMCBatteryPack
 from ebike_simulator import EBikeSimulator
 from plot_utils import plots_erstellen
 
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
-
 
 def main():
     os.makedirs("output", exist_ok=True)
     os.makedirs("output/plot", exist_ok=True)
     basisverzeichnis = Path(__file__).resolve().parent
+
+    log_datei = Path("output") / "ebike_simulation.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(log_datei, mode="w", encoding="utf-8"),
+        ],
+        force=True,
+    )
+    logging.getLogger(__name__).info("Logging wird in %s geschrieben.", log_datei)
 
     # --- 1. GPS-Track einlesen und auswerten -----------------------------
     track = GPSTrack("data/final_project_input_data.csv")
