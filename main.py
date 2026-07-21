@@ -6,6 +6,7 @@ Hauptprogramm, keine eigene Berechnungslogik - nur Ablaufsteuerung.
 
 import os
 import logging
+from pathlib import Path
 
 from gps_track import GPSTrack
 from ebike import EBike
@@ -23,6 +24,7 @@ logging.basicConfig(
 
 def main():
     os.makedirs("output", exist_ok=True)
+    basisverzeichnis = Path(__file__).resolve().parent
 
     # --- 1. GPS-Track einlesen und auswerten -----------------------------
     track = GPSTrack("data/final_project_input_data.csv")
@@ -43,7 +45,7 @@ def main():
     )
 
     # --- 2. Fahrzeug & Motor definieren -----------------------------------
-    bike = EBike(masse_fahrer_kg=70.0, masse_rad_kg=10.0, cw_a_m2=0.5625, raddurchmesser_inch=27.0)
+    bike = EBike.from_yaml(basisverzeichnis / "data" / "bike_config.yaml")
     motor = Motor(motorkonstante_Nm_A=1.5)
 
     # --- 3. Simulation für beide Akkutypen (Polymorphismus über BatteryBase) ---

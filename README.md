@@ -42,6 +42,16 @@ The main input is the GPS track file at `data/final_project_input_data.csv`. The
 - `lon`
 - `ele`
 
+The bike parameters are loaded from `data/bike_config.yaml`.
+
+Example keys:
+
+- `masse_fahrer_kg`
+- `masse_rad_kg`
+- `cw_a_m2`
+- `raddurchmesser_inch`
+- `rollwiderstandkoeffizient`
+
 The program derives additional track values from this input, including:
 
 - distance per step
