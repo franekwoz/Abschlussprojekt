@@ -60,12 +60,30 @@ class GPSTrack:
         )
         return self.ERDRADIUS_M * 2 * math.asin(math.sqrt(a))
 
+    KOPMASSRICHTUNGEN = ["N", "NO", "O", "SO", "S", "SW", "W", "NW"]
+
+    def _kurs_grad(self, lat1, lon1, lat2, lon2) -> float:
+        """Anfangskurs (0-360 Grad, 0 = Norden) von Punkt 1 zu Punkt 2."""
+        lat1_rad, lat2_rad = math.radians(lat1), math.radians(lat2)
+        delta_lon = math.radians(lon2 - lon1)
+        x = math.sin(delta_lon) * math.cos(lat2_rad)
+        y = math.cos(lat1_rad) * math.sin(lat2_rad) - math.sin(lat1_rad) * math.cos(lat2_rad) * math.cos(delta_lon)
+        kurs = math.degrees(math.atan2(x, y))
+        return (kurs + 360.0) % 360.0
+    
+    def _kompassrichtung(self, kurs_grad: float) -> str:
+        """Ordnet einer Kursrichtung (Grad) eine der 8 Kompassrichtungen zu."""
+        index = round(kurs_grad / 45) % 8
+        return self.KOPMASSRICHTUNGEN[index]
+
     def _kinematik_berechnen(self) -> None:
         n = len(self.df)
         distanz = [0.0] * n
         geschwindigkeit = [0.0] * n
         beschleunigung = [0.0] * n
         steigung_grad = [0.0] * n
+        kurs_grad = [0.0] * n
+        kompassrichtung = ["N"] * n
 
         for i in range(1, n):
             dt = (self.df["time"].iloc[i] - self.df["time"].iloc[i - 1]).total_seconds()
@@ -80,11 +98,19 @@ class GPSTrack:
 
             dh = self.df["ele"].iloc[i] - self.df["ele"].iloc[i - 1]
             steigung_grad[i] = math.degrees(math.atan2(dh, d)) if d > 0 else 0.0
+    
+            kurs_grad[i] = self._kurs_grad(
+                self.df["lat"].iloc[i - 1], self.df["lon"].iloc[i - 1],
+                self.df["lat"].iloc[i], self.df["lon"].iloc[i]
+            )
+            kompassrichtung[i] = self._kompassrichtung(kurs_grad[i])
 
         self.df["distanz_m"] = distanz
         self.df["geschwindigkeit_ms"] = geschwindigkeit
         self.df["beschleunigung_ms2"] = beschleunigung
         self.df["steigung_grad"] = steigung_grad
+        self.df["kurs_grad"] = kurs_grad
+        self.df["kompassrichtung"] = kompassrichtung
 
     def gesamtstrecke_km(self) -> float:
         return self.df["distanz_m"].sum() / 1000
@@ -102,6 +128,9 @@ class GPSTrack:
     def hoehenmeter_abstieg(self) -> float:
         dh = self.df["ele"].diff().fillna(0)
         return -dh[dh < 0].sum()
+    
+    def haufigste_kompassrichtung(self) -> str:
+        return self.df["kompassrichtung"].mode().iloc[0]
 
     def kennzahlen_ausgeben(self) -> None:
         print(f"Gesamtstrecke:                 {self.gesamtstrecke_km():.2f} km")
@@ -109,6 +138,7 @@ class GPSTrack:
         print(f"Durchschnittsgeschwindigkeit:  {self.durchschnittsgeschwindigkeit_kmh():.1f} km/h")
         print(f"Höhenmeter Anstieg:            {self.hoehenmeter_anstieg():.0f} m")
         print(f"Höhenmeter Abstieg:            {self.hoehenmeter_abstieg():.0f} m")
+        print(f"Häufigste Fahrtrichtung:        {self.haufigste_kompassrichtung()}")
 
     def __str__(self) -> str:
         return f"GPSTrack({len(self.df)} Punkte, {self.gesamtstrecke_km():.2f} km)"
