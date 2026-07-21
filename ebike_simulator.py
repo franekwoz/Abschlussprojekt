@@ -19,6 +19,7 @@ Simulator funktioniert dadurch mit jedem beliebigen Akkutyp (Polymorphismus).
 """
 
 import logging
+import math
 import pandas as pd
 
 from battery_base import BatteryBase
@@ -68,6 +69,14 @@ class EBikeSimulator:
         """
         df = self.track.df
         n = len(df)
+        if n == 0:
+            raise ValueError("GPSTrack enthält keine Daten.")
+
+        logger.info(
+            "Starte Simulation mit %d Messpunkten für Akku %s.",
+            n,
+            type(self.battery).__name__,
+        )
         letzter_gueltiger_index = n - 1
 
         # erster Punkt hat keinen Vorgänger -> Startzustand
@@ -83,6 +92,10 @@ class EBikeSimulator:
             a = df["beschleunigung_ms2"].iloc[i]
             phi = df["steigung_grad"].iloc[i]
             dt = (df["time"].iloc[i] - df["time"].iloc[i - 1]).total_seconds()
+
+            if dt < 0:
+                logger.error("Zeitstempel sind nicht monoton steigend bei Index %d.", i)
+                raise ValueError("GPSTrack-Zeitstempel müssen monoton steigend sein.")
 
             rho = None
             hoehe = df["ele"].iloc[i] if "ele" in df.columns else None
@@ -103,10 +116,20 @@ class EBikeSimulator:
                 try:
                     self.battery.apply_current(strom, dt)
                     dissipierte_leistung = self.battery.letzte_dissipierte_leistung_W
+                    if not math.isfinite(self.battery.soc) or not 0.0 <= self.battery.soc <= 1.0:
+                        logger.error(
+                            "Ungültiger SoC %.6f nach Schritt %d.",
+                            self.battery.soc,
+                            i,
+                        )
+                        raise ValueError("Akku-SoC ist außerhalb des gültigen Bereichs [0, 1].")
                 except RuntimeError:
                     logger.error(f"Simulation bei Index {i} abgebrochen: Akku leer.")
                     letzter_gueltiger_index = i - 1
                     break
+                except ValueError as exc:
+                    logger.error("Simulation bei Index %d abgebrochen: %s", i, exc)
+                    raise
 
             self.leistung_profile.append(werte["leistung_W"])
             self.drehmoment_profile.append(werte["drehmoment_Nm"])
@@ -121,6 +144,11 @@ class EBikeSimulator:
         df_ergebnis["motorstrom_A"] = self.strom_profile
         df_ergebnis["spannung_V"] = self.spannung_profile
         df_ergebnis["soc"] = self.soc_profile
+        logger.info(
+            "Simulation beendet nach %d Messpunkten, End-SoC %.1f%%.",
+            len(df_ergebnis),
+            self.endladezustand_prozent(),
+        )
         return df_ergebnis
 
     def maximalleistung_W(self) -> float:

@@ -22,6 +22,9 @@ andere Herangehensweise verlangt.
 """
 
 import math
+from pathlib import Path
+
+import yaml
 
 
 class EBike:
@@ -39,16 +42,36 @@ class EBike:
 
     def __init__(
         self,
-        masse_fahrer_kg: float = 70.0,
-        masse_rad_kg: float = 10.0,
-        cw_a_m2: float = 0.5625,
-        raddurchmesser_inch: float = 27.0,
-        rollwiderstandkoeffizient: float = 0.005,
+        masse_fahrer_kg: float,
+        masse_rad_kg: float,
+        cw_a_m2: float,
+        raddurchmesser_inch: float,
+        rollwiderstandkoeffizient: float,
     ):
         self.masse_gesamt_kg = masse_fahrer_kg + masse_rad_kg
         self.cw_a = cw_a_m2
         self.radradius_m = (raddurchmesser_inch * 0.0254) / 2   # Zoll -> Meter, Durchmesser -> Radius
         self.rollwiderstandkoeffizient = rollwiderstandkoeffizient
+
+    @classmethod
+    def from_yaml(cls, pfad: str) -> "EBike":
+        """Erzeugt ein EBike-Objekt aus einer YAML-Konfigurationsdatei."""
+        config_path = Path(pfad)
+        with config_path.open("r", encoding="utf-8") as datei:
+            daten = yaml.safe_load(datei) or {}
+
+        if not isinstance(daten, dict):
+            raise ValueError(f"Ungültiges YAML-Format in {config_path}")
+
+        defaults = {
+            "masse_fahrer_kg": 70.0,
+            "masse_rad_kg": 10.0,
+            "cw_a_m2": 0.5625,
+            "raddurchmesser_inch": 27.0,
+            "rollwiderstandkoeffizient": 0.005,
+        }
+        defaults.update(daten)
+        return cls(**defaults)
 
     def luftwiderstand_N(self, v_ms: float, luftdichte_kg_m3: float | None = None) -> float:
         """F_D = 0.5 * rho * cW*A * v^2"""

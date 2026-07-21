@@ -6,6 +6,7 @@ Hauptprogramm, keine eigene Berechnungslogik - nur Ablaufsteuerung.
 
 import os
 import logging
+from pathlib import Path
 
 from gps_track import GPSTrack
 from ebike import EBike
@@ -13,16 +14,26 @@ from motor import Motor
 from lipo_battery import LiPoBatteryPack
 from nmc_battery import NMCBatteryPack
 from ebike_simulator import EBikeSimulator
-
-logging.basicConfig(
-    level=logging.INFO,
-    format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
-    datefmt="%H:%M:%S",
-)
+from plot_utils import plots_erstellen
 
 
 def main():
     os.makedirs("output", exist_ok=True)
+    os.makedirs("output/plot", exist_ok=True)
+    basisverzeichnis = Path(__file__).resolve().parent
+
+    log_datei = Path("output") / "ebike_simulation.log"
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s [%(levelname)s] %(name)s: %(message)s",
+        datefmt="%H:%M:%S",
+        handlers=[
+            logging.StreamHandler(),
+            logging.FileHandler(log_datei, mode="w", encoding="utf-8"),
+        ],
+        force=True,
+    )
+    logging.getLogger(__name__).info("Logging wird in %s geschrieben.", log_datei)
 
     # --- 1. GPS-Track einlesen und auswerten -----------------------------
     track = GPSTrack("data/final_project_input_data.csv")
@@ -43,7 +54,7 @@ def main():
     )
 
     # --- 2. Fahrzeug & Motor definieren -----------------------------------
-    bike = EBike(masse_fahrer_kg=70.0, masse_rad_kg=10.0, cw_a_m2=0.5625, raddurchmesser_inch=27.0)
+    bike = EBike.from_yaml(basisverzeichnis / "data" / "bike_config.yaml")
     motor = Motor(motorkonstante_Nm_A=1.5)
 
     # --- 3. Simulation für beide Akkutypen (Polymorphismus über BatteryBase) ---
@@ -52,10 +63,13 @@ def main():
         "NMC":  NMCBatteryPack(capacity_nom_Ah=10.0, initial_soc=1.0, n_parallel=1),
     }
 
+    simulationsergebnisse = {}
+
     for name, akku in akku_varianten.items():
         print(f"=== Simulation mit {name}-Akku ===")
         sim = EBikeSimulator(track=track, bike=bike, motor=motor, battery=akku)
         ergebnis_df = sim.simulate()
+        simulationsergebnisse[name] = ergebnis_df
         sim.zusammenfassung_ausgeben()
 
         # Ladezustand entlang der Strecke auf eigener Karte darstellen
@@ -67,6 +81,8 @@ def main():
         )
     
         print()
+
+    plots_erstellen(track.df, simulationsergebnisse, output_dir="output/plot")
 
 
 if __name__ == "__main__":
