@@ -14,6 +14,7 @@ from motor import Motor
 from lipo_battery import LiPoBatteryPack
 from nmc_battery import NMCBatteryPack
 from ebike_simulator import EBikeSimulator
+from plot_utils import plots_erstellen
 
 logging.basicConfig(
     level=logging.INFO,
@@ -24,6 +25,7 @@ logging.basicConfig(
 
 def main():
     os.makedirs("output", exist_ok=True)
+    os.makedirs("output/plot", exist_ok=True)
     basisverzeichnis = Path(__file__).resolve().parent
 
     # --- 1. GPS-Track einlesen und auswerten -----------------------------
@@ -54,10 +56,13 @@ def main():
         "NMC":  NMCBatteryPack(capacity_nom_Ah=10.0, initial_soc=1.0, n_parallel=1),
     }
 
+    simulationsergebnisse = {}
+
     for name, akku in akku_varianten.items():
         print(f"=== Simulation mit {name}-Akku ===")
         sim = EBikeSimulator(track=track, bike=bike, motor=motor, battery=akku)
         ergebnis_df = sim.simulate()
+        simulationsergebnisse[name] = ergebnis_df
         sim.zusammenfassung_ausgeben()
 
         # Ladezustand entlang der Strecke auf eigener Karte darstellen
@@ -69,6 +74,8 @@ def main():
         )
     
         print()
+
+    plots_erstellen(track.df, simulationsergebnisse, output_dir="output/plot")
 
 
 if __name__ == "__main__":
