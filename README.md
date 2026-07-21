@@ -67,6 +67,13 @@ When you run `main.py`, the script prints track statistics and simulation summar
 - `output/karte_soc_lipo.html` for the LiPo simulation colored by state of charge
 - `output/karte_soc_nmc.html` for the NMC simulation colored by state of charge
 
+Additionally, static PNG plots are generated in `output/plot/`:
+
+- `output/plot/hoehenprofil_fahrt.png` for the elevation profile of the route
+- `output/plot/zeitverlauf_lipo.png` with speed, power, state of charge, current and voltage over time (LiPo)
+- `output/plot/zeitverlauf_nmc.png` with speed, power, state of charge, current and voltage over time (NMC)
+- `output/plot/ladezustand_vergleich.png` for SoC comparison of battery types over time
+
 The output folder is created automatically if it does not exist.
 
 ## Project Structure
@@ -84,6 +91,7 @@ The output folder is created automatically if it does not exist.
 - `luftdichte.py` - air density helper functions
 - `data/` - input data files
 - `output/` - generated simulation and map output
+- `plot_utils.py` - static plot generation (time series and elevation profile)
 - `karte_plotten_folium/` - additional folium example files
 
 ## Functionality
