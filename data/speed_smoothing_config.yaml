@@ -1,0 +1,9 @@
+enabled: true
+
+min_interval_s: 0.5
+max_gap_s: 30.0
+
+median_window_s: 15.0
+time_constant_s: 3.0
+
+max_reasonable_speed_kmh: 60.0
