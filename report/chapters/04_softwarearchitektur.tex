@@ -1,0 +1,45 @@
+\chapter{Softwarearchitektur und OOP}
+\label{ch:softwarearchitektur}
+
+Die Architektur des Projekts folgt einer klaren Trennung zwischen Datenquelle, physikalischem Modell, Energieversorgung und Visualisierung. Die Klassen kooperieren ueber Assoziationen und Vererbung, aber die fachliche Verantwortung bleibt in getrennten Modulen gebuendelt.
+
+\section{Objektorientierte Struktur}
+
+\texttt{BatteryBase} definiert die abstrakte Schnittstelle fuer alle Akku-Modelle. \texttt{BatteryPack} liefert die gemeinsame Implementierung mit SoC-Integration und Temperaturkorrektur. \texttt{LiPoBatteryPack} und \texttt{NMCBatteryPack} spezialisieren nur die Leerlaufspannungskennlinie sowie die physikalischen Packparameter. Dadurch kann \texttt{EBikeSimulator} den Akku polymorph verwenden, ohne den konkreten Typ kennen zu muessen.
+
+\texttt{GPSTrack} ist die Datenquelle fuer die Simulation. \texttt{EBike} modelliert die Fahrphysik, \texttt{Motor} die Umrechnung von Drehmoment in Strom. Der Simulator verbindet diese Objekte und fuehrt die Strecke zeitdiskret aus. So entstehen klare Zustaendigkeiten: Datenaufbereitung in \texttt{GPSTrack}, Physik in \texttt{EBike}, elektrische Umrechnung im \texttt{Motor}, Energiespeicherung im Akku und Ablaufsteuerung im Simulator.
+
+\section{Klassendiagramm}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=14mm and 18mm, every node/.style={font=\small}, box/.style={draw, rounded corners, align=center, minimum width=28mm, minimum height=9mm}, arr/.style={-Latex, thick}]
+  \node[box] (batterybase) {BatteryBase};
+  \node[box, below=of batterybase] (batteryPack) {BatteryPack};
+  \node[box, below left=of batteryPack] (lipo) {LiPoBatteryPack};
+  \node[box, below right=of batteryPack] (nmc) {NMCBatteryPack};
+
+  \node[box, right=40mm of batterybase] (sim) {EBikeSimulator};
+  \node[box, above right=of sim] (track) {GPSTrack};
+  \node[box, right=of sim] (bike) {EBike};
+  \node[box, below right=of sim] (motor) {Motor};
+  \node[box, below=of sim] (battery) {BatteryBase};
+
+  \draw[arr] (batterybase) -- (batteryPack);
+  \draw[arr] (batteryPack) -- (lipo);
+  \draw[arr] (batteryPack) -- (nmc);
+
+  \draw[arr] (sim) -- (track);
+  \draw[arr] (sim) -- (bike);
+  \draw[arr] (sim) -- (motor);
+  \draw[arr] (sim) -- (battery);
+\end{tikzpicture}
+\caption{UML-ahnliche Sicht auf die wesentlichen Klassen und Beziehungen}
+\label{fig:klassendiagramm}
+\end{figure}
+
+Das Diagramm zeigt die im Code sichtbare Struktur: Vererbung nach unten bei den Batterien und Assoziationen vom Simulator zu den vier zentralen Objekten. Die Richtung der Pfeile ist absichtlich einfach gehalten, weil der Schwerpunkt auf der inhaltlichen Architektur liegt, nicht auf einer vollstaendigen UML-Notation.
+
+\section{Daten- und Kontrolltrennung}
+
+Die Datenverarbeitung ist von der Simulation entkoppelt. Das Programm liest die CSV und bereitet sie in \texttt{GPSTrack} auf, erzeugt danach ein Objekt des E-Bikes und des Motors und fuehrt dann die Simulation fuer jeden Akkutyp separat aus. Diagramme und Karten sind rein nachgelagerte Ausgaben; sie beeinflussen das Simulationsmodell nicht.

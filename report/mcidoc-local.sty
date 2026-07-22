@@ -1,0 +1,27 @@
+\NeedsTeXFormat{LaTeX2e}
+\ProvidesPackage{mcidoc-local}[2026/07/23 Local report configuration]
+
+\RequirePackage{tabularx}
+\RequirePackage{longtable}
+\RequirePackage{array}
+\RequirePackage{booktabs}
+\RequirePackage{multirow}
+\RequirePackage{graphicx}
+\RequirePackage{pgfplots}
+\RequirePackage{csquotes}
+\usetikzlibrary{positioning,arrows.meta,fit}
+\pgfplotsset{compat=1.18}
+
+\lstdefinestyle{reportstyle}{
+  basicstyle=\ttfamily\small,
+  keywordstyle=\color{blue!70!black},
+  commentstyle=\color{gray!70!black},
+  stringstyle=\color{teal!70!black},
+  breaklines=true,
+  frame=single,
+  columns=fullflexible,
+  showstringspaces=false,
+  numbers=left,
+  numberstyle=\tiny\color{gray!70!black},
+}
+\lstset{style=reportstyle}

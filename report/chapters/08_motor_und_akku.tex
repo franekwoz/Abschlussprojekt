@@ -1,0 +1,54 @@
+\chapter{Motor- und Akkumodelle}
+\label{ch:motor-akku}
+
+\section{Motor}
+
+Die Klasse \texttt{Motor} bildet eine einfache lineare Umrechnung vom Raddrehmoment auf den Strom ab. Verwendet wird die im Projekt explizit geforderte Motorkonstante:
+\begin{equation}
+I = \frac{M}{k_{\mathrm{m}}}
+\end{equation}
+Die Motorkonstante ist in \si{\newton\metre\per\ampere} angegeben. Der Motor ist als eigene Klasse modelliert, damit die Beziehung zwischen mechanischer Last und elektrischem Strom explizit und austauschbar bleibt.
+
+\section{Abstrakte Akku-Schnittstelle}
+
+\texttt{BatteryBase} definiert nur das Interface. Jede konkrete Akku-Klasse muss mindestens die Aktualisierung des Ladezustands und die Berechnung der Klemmenspannung bereitstellen. Diese Abstraktion ist entscheidend fuer den Polymorphismus im Simulator: Der Code arbeitet auf dem Basistyp, nicht auf einer konkreten Unterklasse.
+
+\section{Gemeinsame Akku-Funktionalitaet}
+
+\texttt{BatteryPack} implementiert ein Ersatzschaltbild aus Leerlaufspannung und Innenwiderstand. Der Ladezustand wird ueber die Stromintegration aktualisiert:
+\begin{equation}
+\mathrm{SoC}_{k+1} = \mathrm{SoC}_k - \frac{I\,\Delta t}{C_{\mathrm{nom}}}
+\end{equation}
+Die Nennkapazitaet wird von \si{\ampere\hour} nach \si{\ampere\second} umgerechnet. Positiver Strom entlaedt den Akku, negativer Strom laedt ihn. Die Klemmenspannung ergibt sich als
+\begin{equation}
+U = U_{\mathrm{OC}}(\mathrm{SoC}) - R_{\mathrm{int}} I
+\end{equation}
+und wird temperaturkorrigiert, wenn eine Temperatur gesetzt wurde.
+
+Temperatur beeinflusst zwei Groessen: Der Innenwiderstand steigt bei kaelteren Temperaturen relativ zur Referenz von \SI{25}{\celsius}, waehrend die nutzbare Kapazitaet sinkt. Beide Korrekturen sind nach unten begrenzt, damit bei extremen Temperaturen keine unrealistische Extrapolation entsteht.
+
+\section{LiPo und NMC}
+
+LiPo- und NMC-Akkus erben beide von \texttt{BatteryPack} und unterscheiden sich nur in der Kennlinie und im Innenwiderstand. Das Projekt verwendet tabellarische Leerlaufspannungskennlinien mit linearer Interpolation \cite{numpy_docs}. Dadurch laesst sich das Verhalten beider Akkus unter identischem Lastprofil direkt vergleichen.
+
+\begin{table}[htbp]
+\centering
+\caption{Gemeinsamkeiten und Unterschiede der beiden Akkupacks}
+\label{tab:lipo-nmc}
+\begin{tabularx}{\textwidth}{@{}lXX@{}}
+\toprule
+Aspekt & LiPoBatteryPack & NMCBatteryPack \\
+\midrule
+Vererbung & Erbt von \texttt{BatteryPack} & Erbt von \texttt{BatteryPack} \\
+Serienschaltung & 10 Zellen & 10 Zellen \\
+Innenwiderstand & \SI{8}{\milli\ohm} pro Zelle, skaliert mit \texttt{n\_parallel} & \SI{7}{\milli\ohm} pro Zelle, skaliert mit \texttt{n\_parallel} \\
+OCV-Kennlinie & LiPo-Stuetzstellen aus Tabelle & NMC-Stuetzstellen aus Tabelle \\
+Interpolation & \texttt{numpy.interp} & \texttt{numpy.interp} \\
+Verhalten unter Last & Hoehere Leerlaufspannung bei gleichem SoC & Niedrigere Leerlaufspannung bei gleichem SoC \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Bremswiderstand und Rekuperation}
+
+Wenn beim Bergabfahren oder Bremsen ein negativer Motorstrom entsteht, steigt der Ladezustand des Akkus. Ueberschreitet dieser Ladevorgang 100\,\%, wird der zulaessige Strom begrenzt. Der ueberschuessige Strom wird dann ueber den Bremswiderstand in Waerme umgesetzt und in \texttt{letzte\_dissipierte\_leistung\_W} gespeichert. Im aktuellen Datensatz tritt dieser Fall nicht auf; die gespeicherte dissipierte Leistung bleibt in beiden Simulationslaeufen bei null.

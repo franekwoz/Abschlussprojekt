@@ -1,0 +1,16 @@
+\chapter{Einleitung}
+\label{ch:einleitung}
+
+Das Abschlussprojekt untersucht die Frage, wie viel Energie ein E-Bike auf einer real gefahrenen Route benoetigt. Ausgangspunkt ist keine synthetische Lastkurve, sondern eine GPS-Aufzeichnung mit Zeitstempeln, Position, Hoehe und Temperatur. Dadurch entsteht ein datengetriebenes Modell, das die reale Topografie und das Fahrverhalten der Strecke direkt in die Simulation uebernimmt.
+
+Die Motivation fuer einen solchen Ansatz liegt in der Kopplung mehrerer physikalischer Einfluesse. Die benoetigte Antriebskraft haengt nicht nur von der Geschwindigkeit ab, sondern auch von der Beschleunigung, der Steigung, der Fahrmasse und dem Luftwiderstand. Gerade bei einer Route mit wechselnder Hoehe und vielen kurzen Messabstaenden kann GPS-Rauschen zu stark schwankenden Geschwindigkeiten fuehren. Das Projekt versucht deshalb, die Messdaten aufzubereiten, die Fahrwiderstaende zu bestimmen und darauf aufbauend zwei unterschiedliche Akkutechnologien zu vergleichen.
+
+Das Projektziel ist klar abgegrenzt: Es wird kein vollstaendiges Fahrdynamikmodell mit Fahrerleistung, Wind, Antriebsregelung oder Motorwirkungsgrad simuliert. Stattdessen berechnet die Software aus den GPS-Daten die fuer die Strecke notwendige mechanische Leistung und speist diesen Lastverlauf in ein LiPo- und ein NMC-Akkupack ein. Die zentrale Forschungsfrage lautet damit nicht, wie das Fahrzeug vorwaerts simuliert wird, sondern wie sich eine gegebene Fahrt energetisch auf unterschiedliche Speichertechnologien auswirkt.
+
+\section{Beitrag des Projekts}
+
+Das Programm verbindet Datenverarbeitung, Physik und Visualisierung in einer einzigen Pipeline. Die GPS-Rohdaten werden eingelesen, in Kinematikgroessen umgerechnet, optional geglaettet und anschliessend durch ein E-Bike-Modell und zwei Akku-Varianten verarbeitet. Die Ergebnisse werden sowohl numerisch als auch grafisch ausgegeben: als HTML-Karten, als PNG-Diagramme und als Logdatei. Die technische Dokumentation orientiert sich an der verwendeten Klasse \cite{mcidoc_template}, waehrend das hier beschriebene Programm selbst im Repository des Abschlussprojekts liegt \cite{abschlussprojekt_repo}.
+
+\section{Dokumentation im Bericht}
+
+Die folgenden Kapitel beschreiben zunachst die Anforderungen und die Repository-Struktur, dann die objektorientierte Architektur, die GPS- und Kinematikberechnung, die Geschwindigkeitsglaettung, das physikalische Modell, die Akku- und Motormodelle, den Simulationsablauf sowie die erzeugten Ausgaben. Abschliessend werden die Tests, die realen Simulationsergebnisse und die Grenzen des Modells diskutiert.

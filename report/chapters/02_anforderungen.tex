@@ -1,0 +1,27 @@
+\chapter{Anforderungen}
+\label{ch:anforderungen}
+
+Das aktuelle Projekt implementiert die im Quellcode nachweisbaren Kernfunktionen einer routenbasierten E-Bike-Simulation. Die Anforderungen lassen sich in bereits umgesetzte Kernfunktionen, sichtbare Erweiterungen und naheliegende Folgearbeiten trennen.
+
+\section{Implementierte Kernfunktionen}
+
+\begin{itemize}
+  \item Einlesen einer GPS-CSV-Datei mit den Spalten \texttt{time}, \texttt{lat}, \texttt{lon}, \texttt{ele} und \texttt{temperature}.
+  \item Berechnung von Zeitdifferenzen, Distanz, Geschwindigkeit, Steigung, Kurswinkel, Kompassrichtung und Beschleunigung.
+  \item Optionale Geschwindigkeitsglaettung mit konfigurierbarer Zeitbasis.
+  \item Berechnung der Antriebskraft, mechanischen Leistung, des Raddrehmoments und des Motorstroms.
+  \item Simulation des Ladezustands, der Klemmenspannung und der temperaturabhaengigen Akkuparameter fuer LiPo und NMC.
+  \item Erzeugung von HTML-Karten, PNG-Diagrammen und einer Logdatei.
+\end{itemize}
+
+\section{Erweiterungen gegenueber einer Minimalversion}
+
+Das Projekt geht ueber eine reine Streckenauswertung hinaus. Die GPS-Daten werden nicht nur gelesen, sondern in eine zeitlich konsistente Kinematik ueberfuehrt. Ausserdem verwendet das Programm eine abstrakte Akkobasis, damit der Simulator mit mehreren Akkutypen arbeiten kann. Die Luftdichte wird nicht konstant angesetzt, sondern aus Hoehe und Temperatur abgeschaetzt, und ein Bremswiderstandsmodell faengt Ueberschuesse beim Laden ab.
+
+\section{Nicht implementierte oder bewusst ausgesparte Funktionen}
+
+Mehrere inhaltlich naheliegende Erweiterungen sind im aktuellen Code nicht enthalten und werden daher im Bericht auch nicht behauptet: direkte Fahrerleistung, Windmodell, Motorwirkungsgrad, Rueckspeisung in ein reales Ladenetz, Sensordaten von Leistung oder Drehmoment sowie eine aktive Regelung des Antriebs. Ebenso gibt es keine Pauschalbegrenzung der Geschwindigkeit oder Beschleunigung; die Verarbeitung arbeitet ausschliesslich daten- und segmentbasiert.
+
+\section{Technische Randbedingungen}
+
+Die Software ist fuer einen lokalen Python-Workflow mit virtueller Umgebung ausgelegt. Installiert werden die in \texttt{requirements.txt} genannten Pakete sowie LuaLaTeX. Die Ausgabedateien werden im Verzeichnis \texttt{output/} erzeugt; der Bericht selbst verwendet davon getrennte Kopien der wichtigsten Plot-Dateien im Verzeichnis \texttt{report/figures/generated/}.

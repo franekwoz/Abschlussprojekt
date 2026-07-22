@@ -1,0 +1,8 @@
+$pdf_mode = 4;
+
+$lualatex = 'lualatex -interaction=nonstopmode -halt-on-error %O %S';
+
+$bibtex = 'bibtex %O %B';
+
+$aux_dir = 'build';
+$out_dir = 'build';

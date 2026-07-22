@@ -1,0 +1,62 @@
+\chapter{Geschwindigkeitsglaettung}
+\label{ch:glaettung}
+
+GPS-Daten liefern oft leicht schwankende Positionen, insbesondere bei kurzen Zeitintervallen. Da die Geschwindigkeit im Projekt aus Distanz durch Zeit berechnet wird, erzeugen kleine Zeitdifferenzen schnell hohe Spitzen. Diese Spitzen wirken direkt auf die Beschleunigung und damit auf die benoetigte Leistung. Das Projekt bietet deshalb eine zeitbasierte Glättung, die ueber die Konfiguration in \texttt{data/speed\_smoothing\_config.yaml} aktiviert oder deaktiviert wird.
+
+\section{Konfigurationsparameter}
+
+Die aktuelle Konfiguration enthaelt die folgenden Werte:
+\begin{table}[htbp]
+\centering
+\caption{Parameter der Geschwindigkeitsglaettung}
+\label{tab:smoothing-config}
+\begin{tabular}{@{}ll@{}}
+\toprule
+Parameter & Bedeutung \\
+\midrule
+\texttt{enabled} & Schaltet die Glättung ein oder aus. \\
+\texttt{min\_interval\_s} & Untere Schranke fuer gueltige Filterstuetzstellen. \\
+\texttt{max\_gap\_s} & Zeitluecke, ab der ein neues Segment beginnt. \\
+\texttt{median\_window\_s} & Zeitfenster des zeitbasierten Medianfilters. \\
+\texttt{time\_constant\_s} & Zeitkonstante der exponentiellen Glättung. \\
+\texttt{max\_reasonable\_speed\_kmh} & Plausibilitaetsgrenze fuer Stützstellen. \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Ablauf der Glättung}
+
+Der Algorithmus arbeitet segmentweise und fuehrt die folgenden Schritte aus:
+\begin{enumerate}
+  \item Rohgeschwindigkeit berechnen.
+  \item Ungueltige Intervalle erkennen, also \(\Delta t \le 0\).
+  \item Sehr kurze Intervalle als ungeeignete Stützstellen markieren.
+  \item Grosse Zeitluecken in getrennte Segmente aufteilen.
+  \item Unplausible Geschwindigkeiten als Ausreisser markieren.
+  \item Einen zeitbasierten Medianfilter anwenden.
+  \item Fehlende Werte nur innerhalb des Segments interpolieren.
+  \item Eine zeitabhaengige exponentielle Glättung vorwaerts ausfuehren.
+  \item Die Glättung rueckwaerts wiederholen.
+  \item Beide Verlaeufe mitteln.
+  \item Die Beschleunigung aus der aktiven Geschwindigkeitskurve berechnen.
+\end{enumerate}
+
+\section{Mathematische Beschreibung}
+
+Die zeitabhaengige Glättung verwendet den Faktor
+\begin{equation}
+\alpha_i = 1 - \exp\left(-\frac{\Delta t_i}{\tau}\right)
+\end{equation}
+mit der Zeitkonstante \(\tau\). Daraus folgt die Rekursion
+\begin{equation}
+ v_{\mathrm{glatt},i}
+ = v_{\mathrm{glatt},i-1}
+ + \alpha_i\left(v_i - v_{\mathrm{glatt},i-1}\right)
+\end{equation}
+Die Rueckwaertsfilterung verwendet dieselbe Formel auf der umgekehrten Zeitachse; das Ergebnis wird anschliessend mit dem Vorwaertsverlauf gemittelt.
+
+Die Eingabekonfiguration wird aus YAML geladen \cite{pyyaml_docs}; die Glättungsparameter werden dabei auf Plausibilitaet geprueft, bevor sie in die Segmentierung und Filterung einfliessen.
+
+\section{Aktive und passive Spalten}
+
+Das Projekt unterscheidet bewusst zwischen Roh-, geglätteter und aktiver Groesse. \texttt{geschwindigkeit\_roh\_ms} bleibt immer erhalten. \texttt{geschwindigkeit\_geglaettet\_ms} zeigt das Filterergebnis, waehrend \texttt{geschwindigkeit\_ms} die fuer die Simulation aktive Kurve enthaelt. Dasselbe gilt fuer \texttt{beschleunigung\_roh\_ms2}, \texttt{beschleunigung\_geglaettet\_ms2} und \texttt{beschleunigung\_ms2}. Es gibt keine pauschale Begrenzung oder das Abschneiden extremer Werte; stattdessen werden nur Filterstützstellen und Segmente intelligent behandelt.

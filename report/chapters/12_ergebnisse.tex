@@ -1,0 +1,59 @@
+\chapter{Ergebnisse}
+\label{ch:ergebnisse}
+
+Die folgenden Kennzahlen wurden aus dem aktuellen Datensatz und dem bestehenden Code abgeleitet. Alle Streckenkennwerte bleiben zwischen den beiden Glättungslaeufen gleich, weil sie nur von den GPS-Daten abhängen. Unterschiede entstehen ausschliesslich in Geschwindigkeit, Beschleunigung und den daraus folgenden elektrischen Groessen.
+
+\section{Streckenkennwerte}
+
+\begin{table}[htbp]
+\centering
+\caption{Ermittelte Kennzahlen des aktuellen Datensatzes}
+\label{tab:streckenkennzahlen}
+\begin{tabular}{@{}lr@{}}
+\toprule
+Kennwert & Wert \\
+\midrule
+GPS-Punkte & 2284 \\
+Gesamtdauer & 16372.391\,s \\
+Gesamtstrecke & 94.267\,km \\
+Hoehenmeter aufwaerts & 1095.895\,m \\
+Hoehenmeter abwaerts & 1097.146\,m \\
+Durchschnittsgeschwindigkeit & 20.728\,km/h \\
+Maximale Rohgeschwindigkeit & 48.772\,km/h \\
+Maximale geglaettete Geschwindigkeit & 48.584\,km/h \\
+Maximale Rohbeschleunigung & 2.982\,m/s\textsuperscript{2} \\
+Minimale Rohbeschleunigung & -3.790\,m/s\textsuperscript{2} \\
+\bottomrule
+\end{tabular}
+\end{table}
+
+\section{Vergleich der Glättung}
+
+\begin{table}[htbp]
+\centering
+\caption{Vergleich ohne und mit Glättung}
+\label{tab:vergleich-glaettung}
+\begin{tabularx}{\textwidth}{@{}lXX@{}}
+\toprule
+Kennwert & Glättung aus & Glättung an \\
+\midrule
+Aktive Geschwindigkeitsspitze & 48.772\,km/h & 48.584\,km/h \\
+Aktive Beschleunigungsspitze & 2.982\,m/s\textsuperscript{2} & 0.583\,m/s\textsuperscript{2} \\
+Maximale mechanische Leistung & 2515.913\,W & 974.146\,W \\
+Maximaler Motorstrom & 61.628\,A & 24.843\,A \\
+End-SoC LiPo & 0.0\,\% & 0.0\,\% \\
+End-SoC NMC & 0.0\,\% & 0.0\,\% \\
+Minimale Spannung LiPo & 31.278\,V & 31.292\,V \\
+Minimale Spannung NMC & 31.115\,V & 31.097\,V \\
+Bremswiderstandsenergie & 0.000\,Wh & 0.000\,Wh \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+Die Strecke selbst bleibt unveraendert, aber die Glättung reduziert die Spitzen deutlich. Besonders der Unterschied bei Beschleunigung, Leistung und Motorstrom ist relevant: Ohne Glättung fuehrt ein kurzer Geschwindigkeitssprung zu einer sehr hohen Lastspitze. Mit Glättung wird der Verlauf deutlich ruhiger, waehrend die Strecke und die mittlere Geschwindigkeit praktisch gleich bleiben.
+
+\section{Interpretation}
+
+Beide Akkus werden im aktuellen Datensatz vollstaendig entladen. Das bedeutet nicht, dass die Akkus physikalisch identisch reagieren; vielmehr ist der Lastbedarf so hoch, dass beide Modelle vor dem Streckenende auf 0\,\% SoC fallen. Die NMC-Kurve liegt bei gleichem SoC typischerweise niedriger in der Spannung als die LiPo-Kurve, weshalb die minimale Spannung im NMC-Lauf niedriger ausfaellt.
+
+Der wesentliche Nutzen der Glättung zeigt sich in den Spitzenwerten. Sie senkt die maximal benoetigte Leistung auf rund \SI{974}{\watt} statt \SI{2516}{\watt} und reduziert den maximalen Motorstrom auf etwa \SI{24.8}{\ampere} statt \SI{61.6}{\ampere}. Damit wird die numerische Auswirkung von GPS-Rauschen direkt sichtbar.

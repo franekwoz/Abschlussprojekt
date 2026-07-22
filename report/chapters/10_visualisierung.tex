@@ -1,0 +1,52 @@
+\chapter{Visualisierung und Ausgaben}
+\label{ch:visualisierung}
+
+Das Projekt erzeugt zwei Arten von Ausgaben: interaktive HTML-Karten mit Folium und statische PNG-Diagramme mit Matplotlib. Beide Ausgabearten sind rein nachgelagert und greifen nur auf die bereits berechneten Daten zu.
+
+\section{HTML-Karten}
+
+Die Strecke wird als farbcodierte Linie in \texttt{output/karte\_strecke.html} gespeichert. Zusaetzlich erzeugt der Simulator zwei SoC-Karten fuer die beiden Akkutypen: \texttt{output/karte\_soc\_lipo.html} und \texttt{output/karte\_soc\_nmc.html}. Die Karten werden mit \texttt{folium} aufgebaut \cite{folium_docs} und koennen im Browser direkt geoeffnet werden. Als Kartenhintergrund wird standardmaessig ein kartenkompatibler Stil verwendet, damit lokale HTML-Dateien ohne Referer-Problem funktionieren.
+
+\section{PNG-Diagramme}
+
+Die statischen Plots liegen unter \texttt{output/plot/}. Fuer den Bericht wurden ihre reproduzierbaren Kopien nach \texttt{report/figures/generated/} uebernommen und mit \texttt{matplotlib} erzeugt \cite{matplotlib_docs}.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{hoehenprofil_fahrt.png}
+\caption{Hoehenprofil der betrachteten Route}
+\label{fig:hoehenprofil}
+\end{figure}
+
+Das Hoehenprofil in Abbildung~\ref{fig:hoehenprofil} zeigt die topografischen Wechsel der Strecke. Diese Hoehenaenderungen sind fuer die spaetere Leistungs- und Akkuabschätzung zentral, weil Steigung und Gefaelle direkt in die Hangabtriebskraft eingehen.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{zeitverlauf_lipo.png}
+\caption{Zeitverlauf der Simulationsgroessen fuer den LiPo-Lauf}
+\label{fig:zeitverlauf-lipo}
+\end{figure}
+
+Abbildung~\ref{fig:zeitverlauf-lipo} kombiniert Geschwindigkeit, Leistung, Ladezustand, Strom und Spannung. Man erkennt, dass die Leistungsspitzen und der Stromverlauf direkt von der aktiven Geschwindigkeitskurve abhängen. Die Zeitverlaeufe fuer NMC sind im Projekt analog erzeugt; die Diagrammdatei liegt ebenfalls im Verzeichnis der generierten Abbildungen.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{ladezustand_vergleich.png}
+\caption{Vergleich des Ladezustands beider Akkutypen}
+\label{fig:soc-vergleich}
+\end{figure}
+
+Der SoC-Vergleich in Abbildung~\ref{fig:soc-vergleich} zeigt beide Akkus im selben Fahrprofil. Weil die Simulation im aktuellen Datensatz wegen leerem Akku endet, laufen beide Kurven bis auf 0\,\% herunter und erreichen dort ihre Untergrenze.
+
+\begin{figure}[htbp]
+\centering
+\includegraphics[width=0.9\textwidth]{geschwindigkeit_roh_geglaettet.png}
+\caption{Vergleich von Roh- und geglaetteter Geschwindigkeit}
+\label{fig:speed-comparison}
+\end{figure}
+
+Die Diagnosegrafik in Abbildung~\ref{fig:speed-comparison} zeigt den Filtereffekt direkt. Die geglättete Kurve entfernt schnelle, dateninduzierte Zacken, ohne die Strecke selbst oder die maximale Rueckfuehrung auf null zu beschneiden.
+
+\section{Logdatei und Verzeichnisse}
+
+Die Logdatei \texttt{output/ebike\_simulation.log} spiegelt die Konsolenausgaben mit Zeitstempeln. Das Programm erzeugt alle benoetigten Verzeichnisse beim Start automatisch. Der Bericht selbst verwendet davon getrennte, versionierte Kopien der wichtigsten PNGs.

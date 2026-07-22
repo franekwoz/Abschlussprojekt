@@ -1,0 +1,68 @@
+\chapter{Projektstruktur}
+\label{ch:projektstruktur}
+
+Das Repository ist flach organisiert und trennt die Fachlogik in kleine, klar benannte Module. Das erleichtert sowohl die Simulation als auch die Wartung, weil GPS-Verarbeitung, Fahrzeugphysik, Motorlogik, Akkuverhalten und Visualisierung getrennt entwickelt werden koennen.
+
+\section{Uebersicht der Komponenten}
+
+\begin{table}[htbp]
+\centering
+\caption{Wesentliche Komponenten des Repositories und ihre Verantwortung}
+\label{tab:komponenten}
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+Komponente & Verantwortung \\
+\midrule
+\texttt{main.py} & Programmstart, Logging, Laden der Konfiguration, Erzeugen von Track, Fahrzeug, Motor und Akkus sowie Start der Simulation. \\
+\texttt{gps\_track.py} & Einlesen der GPS-CSV, Berechnung von Distanz, Geschwindigkeit, Steigung, Kurs, Kompassrichtung und Beschleunigung sowie Kartenerzeugung. \\
+\texttt{speed\_smoothing.py} & Laden der Glättungskonfiguration, Segmentierung und zeitbasierte Glättung der Geschwindigkeitskurve. \\
+\texttt{ebike.py} & Fahrzeugphysik mit Luft-, Hang-, Roll- und Beschleunigungsanteilen. \\
+\texttt{motor.py} & Umrechnung von Drehmoment in Motorstrom ueber die Motorkonstante. \\
+\texttt{ebike\_simulator.py} & Schrittweise Simulation der Fahrt und Aufzeichnung der Ergebnisprofile. \\
+\texttt{battery\_base.py} & Abstrakte Schnittstelle fuer Batteriemodelle. \\
+\texttt{battery\_pack.py} & Gemeinsame Akku-Funktionalitaet, SoC-Integration, Temperaturkorrektur und Begrenzung. \\
+\texttt{lipo\_battery.py} & LiPo-spezifische OCV-Kennlinie und Packparametrisierung. \\
+\texttt{nmc\_battery.py} & NMC-spezifische OCV-Kennlinie und Packparametrisierung. \\
+\texttt{akkutemperatur.py} & Temperaturabhängige Korrektur von Innenwiderstand und Kapazitaet. \\
+\texttt{luftdichte.py} & Schaetzung der Luftdichte aus Hoehe und Temperatur. \\
+\texttt{bremswiderstand.py} & Umrechnung von ueberschuessigem Strom in dissipierte Leistung. \\
+\texttt{plot\_utils.py} & Matplotlib-Plots fuer Hoehenprofil, Zeitverlaeufe und SoC-Vergleich. \\
+\texttt{data/} & Eingabedaten und Konfigurationsdateien. \\
+\texttt{tests/} & Unittest-Suite fuer Glättung, Kinematik und Simulator-Kompatibilitaet. \\
+\texttt{output/} & Laufzeit-Ausgaben des Programms. \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Zentrale Klassen und Funktionen}
+
+\begin{table}[htbp]
+\centering
+\caption{Ausgewaehlte Klassen und ihre oeffentlichen Methoden}
+\label{tab:klassen-methoden}
+\small
+\begin{tabularx}{\textwidth}{@{}lX@{}}
+\toprule
+Klasse oder Funktion & Oeffentliche Methoden und Signaturen \\
+\midrule
+\texttt{GPSTrack} & \texttt{GPSTrack(pfad: str | Path, smoothing\_config: SpeedSmoothingConfig | None = None)}, \texttt{gesamtstrecke\_km()}, \texttt{durchschnittsgeschwindigkeit\_kmh()}, \texttt{gesamtzeit\_s()}, \texttt{hoehenmeter\_anstieg()}, \texttt{hoehenmeter\_abstieg()}, \texttt{haufigste\_kompassrichtung()}, \texttt{kennzahlen\_ausgeben()}, \texttt{smoothing\_kennzahlen()}, \texttt{karte\_erstellen(...)} \\
+\texttt{SpeedSmoothingConfig} & \texttt{from\_yaml(path)}, Attribut \texttt{max\_reasonable\_speed\_ms} \\
+\texttt{EBike} & \texttt{from\_yaml(pfad)}, \texttt{luftwiderstand\_N(...)}, \texttt{hangabtriebskraft\_N(...)}, \texttt{beschleunigungskraft\_N(...)}, \texttt{rollwiderstand\_N(...)}, \texttt{antriebskraft\_N(...)}, \texttt{leistung\_W(...)}, \texttt{drehmoment\_Nm(...)}, \texttt{punkt\_auswerten(...)} \\
+\texttt{Motor} & \texttt{Motor(motorkonstante\_Nm\_A: float = 1.5)}, \texttt{get\_current\_draw(torque\_Nm: float)} \\
+\texttt{BatteryBase} & \texttt{apply\_current(current: float, duration: float)}, \texttt{voltage(current: float = 0.0)} \\
+\texttt{BatteryPack} & \texttt{set\_temperatur(temperature\_c: float | None = None)}, \texttt{apply\_current(...)}, \texttt{voltage(...)}, \texttt{is\_empty()}, \texttt{is\_full()} \\
+\texttt{LiPoBatteryPack} &
+\texttt{\_ocv(soc: float)} als Uebersteuerung der
+Leerlaufspannungskennlinie \\
+
+\texttt{NMCBatteryPack} &
+\texttt{\_ocv(soc: float)} als Uebersteuerung der
+Leerlaufspannungskennlinie \\
+\texttt{EBikeSimulator} & \texttt{simulate()}, \texttt{maximalleistung\_W()}, \texttt{bremswiderstand\_energie\_Wh()}, \texttt{endladezustand\_prozent()}, \texttt{zusammenfassung\_ausgeben()} \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Dateien und Ausgaben}
+
+Die wichtigsten Eingabedateien liegen unter \texttt{data/}. Die Ergebnisdateien werden zur Laufzeit unter \texttt{output/} abgelegt, wobei Unterordner fuer Plots automatisch erzeugt werden. Fuer den Bericht wurden die reproduzierbaren PNG-Dateien nach \texttt{report/figures/generated/} kopiert, damit der PDF-Build ohne Abhaengigkeit vom letzten Programmlauf funktioniert.

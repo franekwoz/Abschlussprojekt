@@ -1,0 +1,40 @@
+\chapter{Simulationsablauf}
+\label{ch:simulation}
+
+\section{Datenfluss}
+
+\begin{figure}[htbp]
+\centering
+\begin{tikzpicture}[node distance=10mm and 12mm, every node/.style={font=\small}, box/.style={draw, rounded corners, align=center, minimum width=28mm, minimum height=8mm}, arr/.style={-Latex, thick}]
+  \node[box] (csv) {GPS-CSV};
+  \node[box, below left=of csv] (bikecfg) {Bike-\-Konfiguration};
+  \node[box, below right=of csv] (smoothcfg) {Glättungs-\-konfiguration};
+  \node[box, below=of csv] (track) {GPSTrack};
+  \node[box, below=of track] (kin) {Kinematik und optionale Glättung};
+  \node[box, below=of kin] (sim) {EBikeSimulator};
+  \node[box, below=of sim] (phys) {EBike + Motor + Akku};
+  \node[box, below=of phys] (frames) {Simulations-\-DataFrames};
+  \node[box, below=of frames] (out) {Kennzahlen, PNGs, HTML-Karten, Logdatei};
+
+  \draw[arr] (csv) -- (track);
+  \draw[arr] (bikecfg) |- (sim.west);
+  \draw[arr] (smoothcfg) |- (track.east);
+  \draw[arr] (track) -- (kin);
+  \draw[arr] (kin) -- (sim);
+  \draw[arr] (sim) -- (phys);
+  \draw[arr] (phys) -- (frames);
+  \draw[arr] (frames) -- (out);
+\end{tikzpicture}
+\caption{Programmfluss von den Eingabedaten bis zu den Ausgaben}
+\label{fig:datenfluss}
+\end{figure}
+
+\section{Ablauf in \texttt{main.py}}
+
+Der Programmstart erzeugt zunaechst die Ausgabeverzeichnisse und initialisiert das Logging. Danach werden die Glättungskonfiguration und der GPS-Track geladen. Anschliessend gibt das Programm die wichtigsten Streckenkennzahlen aus und schreibt eine interaktive Karte mit der Streckenfarbe nach Geschwindigkeit.
+
+Im naechsten Schritt werden E-Bike, Motor und zwei Akkupacks instanziiert. Dann laeuft der Simulator zweimal: einmal fuer LiPo und einmal fuer NMC. Beide Laeufe verwenden dieselbe Track-Datenbasis. Nach jedem Lauf wird eine SoC-Karte erzeugt und das Ergebnis-DataFrame gespeichert. Zum Schluss erstellt \texttt{plot\_utils.py} die statischen Diagramme.
+
+\section{Uebergebene Daten}
+
+Zwischen den Komponenten werden ausschliesslich DataFrames, einfache Zahlen und konkrete Klassenobjekte uebergeben. \texttt{GPSTrack} liefert die physikalisch aufbereiteten Spalten, \texttt{EBikeSimulator} erweitert diese um Leistungs- und Akkuwerte. Dadurch bleibt die Schnittstelle nachvollziehbar und leicht testbar.

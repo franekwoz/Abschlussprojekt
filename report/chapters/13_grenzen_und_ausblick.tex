@@ -1,0 +1,20 @@
+\chapter{Grenzen und Ausblick}
+\label{ch:grenzen}
+
+Das aktuelle Modell ist bewusst schlank gehalten. Es beschreibt die im Quellcode umgesetzten Zusammenhaenge nachvollziehbar, ersetzt aber keine vollstaendige Fahrzeugsimulation.
+
+\section{Aktuell implementiert}
+
+Implementiert sind GPS-basierte Kinematik, Fahrzeugkraefte, Motorstrom, Akku-SoC, Temperaturkorrektur, Luftdichteabschätzung und die Behandlung eines Bremswiderstandsfalls bei zu hohem Ladestrom.
+
+\section{Modellannahmen}
+
+Mehrere Vereinfachungen sind fuer die aktuelle Version wesentlich. Die Fahrerleistung wird nicht separat modelliert. Der Motor wird nur ueber eine konstante Motorkonstante beschrieben. Der Luftwiderstand nutzt eine einfache quadratische Formel. Die thermische Akkuphysik wird ueber lineare Korrekturfaktoren angenaehert. GPS-Hoehe und GPS-Position werden direkt als Eingangsrealitaet akzeptiert, obwohl beide Messgroessen verrauscht sein koennen.
+
+\section{Moegliche Erweiterungen}
+
+Naheliegende Erweiterungen waeren ein Windmodell, ein detaillierteres Motorwirkungsgradmodell, eine echte Rekuperationslogik mit begrenzter Ladeleistung, eine mechanische Fahrerleistung, eine Validierung gegen reale Sensordaten sowie eine ausgereiftere Filterparametrierung. Auch die Akkumodelle koennten um temperatur- und lastabhaengige Kennlinien erweitert werden.
+
+\section{Einordnung}
+
+Der Wert des Projekts liegt nicht in maximaler Komplexitaet, sondern in der sauberen Kette von Daten zu physikalischer Last und anschliessender Akku-Simulation. Fuer den vorhandenen Datensatz ist diese Kette bereits schluessig nachvollziehbar und reproduzierbar.

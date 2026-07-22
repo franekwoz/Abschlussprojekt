@@ -111,6 +111,14 @@ The results are then visualized as interactive HTML maps. One map shows the rout
 - The project uses `folium` for interactive maps.
 - If you want to open the generated HTML files locally, simply open them in a browser after running the script.
 
+## LaTeX-Projektbericht
+
+Ein vollstaendiger deutschsprachiger Projektbericht befindet sich im Verzeichnis `report/`.
+
+- Voraussetzungen: LuaLaTeX, `latexmk` und die in `requirements.txt` aufgefuehrten Python-Pakete
+- Build: `cd report` und dann `make` oder direkt `latexmk -lualatex -interaction=nonstopmode -halt-on-error main.tex`
+- Ausgabe-PDF: `report/build/abschlussprojekt_report.pdf`
+
 ## Geschwindigkeitsglättung
 
 Die aus GPS-Punkten berechnete Geschwindigkeit kann bei sehr kurzen Zeitabständen und Messrauschen stark schwanken. Diese Schwankungen wirken direkt auf die Beschleunigung und damit auf die berechnete Leistung. Deshalb besitzt das Projekt eine optional ein- und ausschaltbare, zeitbasierte Geschwindigkeitsglättung.
