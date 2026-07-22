@@ -53,7 +53,34 @@ def plots_erstellen(track_df: pd.DataFrame, simulationen: dict[str, pd.DataFrame
 
         fig, axes = plt.subplots(4, 1, figsize=(12, 12), sharex=True)
 
-        axes[0].plot(zeit_min, df["geschwindigkeit_ms"] * 3.6, color="tab:blue")
+        smoothing_aktiv = bool(df.get("speed_smoothing_enabled", pd.Series([False])).iloc[0])
+        hat_roh = "geschwindigkeit_roh_ms" in df.columns
+        if smoothing_aktiv and hat_roh:
+            axes[0].plot(
+                zeit_min,
+                df["geschwindigkeit_roh_ms"] * 3.6,
+                color="tab:gray",
+                linewidth=0.8,
+                alpha=0.35,
+                label="Rohgeschwindigkeit",
+            )
+            axes[0].plot(
+                zeit_min,
+                df["geschwindigkeit_ms"] * 3.6,
+                color="tab:blue",
+                linewidth=1.5,
+                label="Verwendete Geschwindigkeit",
+            )
+            axes[0].legend()
+        else:
+            axes[0].plot(
+                zeit_min,
+                df["geschwindigkeit_ms"] * 3.6,
+                color="tab:blue",
+                linewidth=1.5,
+                label="Verwendete Geschwindigkeit",
+            )
+            axes[0].legend()
         axes[0].set_ylabel("v [km/h]")
         axes[0].set_title(f"Fahr- und Simulationsverlauf ueber Zeit ({name})")
         axes[0].grid(alpha=0.3)
@@ -87,3 +114,32 @@ def plots_erstellen(track_df: pd.DataFrame, simulationen: dict[str, pd.DataFrame
     ax_soc.grid(alpha=0.3)
     ax_soc.legend()
     _save_figure(fig_soc, out / "ladezustand_vergleich.png")
+
+    # Optionales Diagnosebild: Roh- vs. geglaettete Geschwindigkeit des Tracks.
+    if (
+        "geschwindigkeit_roh_ms" in track_df.columns
+        and "geschwindigkeit_geglaettet_ms" in track_df.columns
+    ):
+        zeit_min_track = _zeitachse_minuten(track_df)
+        fig_diag, ax_diag = plt.subplots(figsize=(12, 4))
+        ax_diag.plot(
+            zeit_min_track,
+            track_df["geschwindigkeit_roh_ms"] * 3.6,
+            linewidth=0.8,
+            alpha=0.35,
+            color="tab:gray",
+            label="Rohgeschwindigkeit",
+        )
+        ax_diag.plot(
+            zeit_min_track,
+            track_df["geschwindigkeit_geglaettet_ms"] * 3.6,
+            linewidth=1.5,
+            color="tab:blue",
+            label="Geglaettete Geschwindigkeit",
+        )
+        ax_diag.set_title("Vergleich Roh- und geglaettete Geschwindigkeit")
+        ax_diag.set_xlabel("Zeit [min]")
+        ax_diag.set_ylabel("v [km/h]")
+        ax_diag.grid(alpha=0.3)
+        ax_diag.legend()
+        _save_figure(fig_diag, out / "geschwindigkeit_roh_geglaettet.png")
