@@ -93,6 +93,11 @@ class EBikeSimulator:
             phi = df["steigung_grad"].iloc[i]
             dt = (df["time"].iloc[i] - df["time"].iloc[i - 1]).total_seconds()
 
+            if not math.isfinite(v) or not math.isfinite(a):
+                raise ValueError(
+                    f"Nicht-endlicher Simulationswert bei Index {i}: v={v}, a={a}."
+                )
+
             if dt < 0:
                 logger.error("Zeitstempel sind nicht monoton steigend bei Index %d.", i)
                 raise ValueError("GPSTrack-Zeitstempel müssen monoton steigend sein.")

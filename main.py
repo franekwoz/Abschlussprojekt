@@ -9,6 +9,7 @@ import logging
 from pathlib import Path
 
 from gps_track import GPSTrack
+from speed_smoothing import SpeedSmoothingConfig
 from ebike import EBike
 from motor import Motor
 from lipo_battery import LiPoBatteryPack
@@ -36,11 +37,51 @@ def main():
     logging.getLogger(__name__).info("Logging wird in %s geschrieben.", log_datei)
 
     # --- 1. GPS-Track einlesen und auswerten -----------------------------
-    track = GPSTrack("data/final_project_input_data.csv")
+    smoothing_config = SpeedSmoothingConfig.from_yaml(
+        basisverzeichnis / "data" / "speed_smoothing_config.yaml"
+    )
+    track = GPSTrack(
+        basisverzeichnis / "data" / "final_project_input_data.csv",
+        smoothing_config=smoothing_config,
+    )
+
+    logging.getLogger(__name__).info(
+        "Geschwindigkeitsglättung: %s",
+        "aktiviert" if smoothing_config.enabled else "deaktiviert",
+    )
+    logging.getLogger(__name__).info(
+        "Verwendete Parameter: min_interval_s=%.3f, max_gap_s=%.3f, median_window_s=%.3f, "
+        "time_constant_s=%.3f, max_reasonable_speed_kmh=%.1f",
+        smoothing_config.min_interval_s,
+        smoothing_config.max_gap_s,
+        smoothing_config.median_window_s,
+        smoothing_config.time_constant_s,
+        smoothing_config.max_reasonable_speed_kmh,
+    )
 
     print("=== Streckendaten ===")
-    print(track.df[["time", "distanz_m", "geschwindigkeit_ms",
-                     "beschleunigung_ms2", "steigung_grad"]].head(10))
+    print(
+        track.df[
+            [
+                "time",
+                "dt_s",
+                "distanz_m",
+                "geschwindigkeit_roh_ms",
+                "geschwindigkeit_geglaettet_ms",
+                "geschwindigkeit_ms",
+                "beschleunigung_ms2",
+                "steigung_grad",
+            ]
+        ].head(10)
+    )
+    print(
+        "Aktive Geschwindigkeitskurve: "
+        + (
+            "geglättet"
+            if smoothing_config.enabled
+            else "roh"
+        )
+    )
     print()
     track.kennzahlen_ausgeben()
     print()

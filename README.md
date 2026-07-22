@@ -110,3 +110,64 @@ The results are then visualized as interactive HTML maps. One map shows the rout
 
 - The project uses `folium` for interactive maps.
 - If you want to open the generated HTML files locally, simply open them in a browser after running the script.
+
+## Geschwindigkeitsglättung
+
+Die aus GPS-Punkten berechnete Geschwindigkeit kann bei sehr kurzen Zeitabständen und Messrauschen stark schwanken. Diese Schwankungen wirken direkt auf die Beschleunigung und damit auf die berechnete Leistung. Deshalb besitzt das Projekt eine optional ein- und ausschaltbare, zeitbasierte Geschwindigkeitsglättung.
+
+Die Konfiguration liegt in:
+
+- `data/speed_smoothing_config.yaml`
+
+Aktivieren:
+
+```yaml
+enabled: true
+```
+
+Deaktivieren:
+
+```yaml
+enabled: false
+```
+
+Weitere Parameter in derselben Datei:
+
+- `min_interval_s`: Kleinste Intervallzeit, die als gültige Filterstützstelle akzeptiert wird
+- `max_gap_s`: Zeitlücke, ab der ein neuer Messabschnitt beginnt
+- `median_window_s`: Breite des zeitbasierten Medianfensters
+- `time_constant_s`: Zeitkonstante der exponentiellen Glättung
+- `max_reasonable_speed_kmh`: Plausibilitätsgrenze für Filterstützstellen (kein hartes Abschneiden)
+
+Filterablauf (pro zusammenhängendem Messabschnitt):
+
+1. Rohgeschwindigkeit aus Distanz und `dt_s` berechnen.
+2. Ungültige Stützstellen markieren (`dt_s <= 0`, sehr kurze Intervalle, unplausible Ausreißer).
+3. Zeitbasierten Medianfilter anwenden.
+4. Fehlende Werte nur innerhalb des Abschnitts zeitbasiert interpolieren.
+5. Zeitabhängige exponentielle Glättung vorwärts und rückwärts ausführen.
+6. Beide Verläufe mitteln.
+7. Beschleunigung aus der jeweils verwendeten Geschwindigkeitskurve berechnen.
+
+Wichtig:
+
+- Es werden keine Leistungs-, Geschwindigkeits- oder Beschleunigungswerte hart begrenzt.
+- Rohwerte bleiben erhalten.
+
+Neue/erweiterte Spalten im Track-DataFrame:
+
+- `dt_s`
+- `segment_id`
+- `geschwindigkeit_roh_ms`
+- `geschwindigkeit_geglaettet_ms`
+- `beschleunigung_roh_ms2`
+- `beschleunigung_geglaettet_ms2`
+- `geschwindigkeit_ms` (aktive Simulationsgeschwindigkeit)
+- `beschleunigung_ms2` (aktive Simulationsbeschleunigung)
+- `filter_gueltige_stuetzstelle`
+- `filter_kurzes_intervall`
+- `filter_grosse_zeitluecke`
+- `filter_geschwindigkeitsausreisser`
+- `speed_smoothing_enabled`
+
+Damit bleibt die Simulationsschnittstelle unverändert: Der Simulator arbeitet weiterhin mit `geschwindigkeit_ms` und `beschleunigung_ms2`.

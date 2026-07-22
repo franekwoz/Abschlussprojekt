@@ -25,6 +25,13 @@ Motorstrom, ...) einfärben und plotten lässt.
 import math
 import logging
 import pandas as pd
+from pathlib import Path
+
+from speed_smoothing import (
+    SpeedSmoothingConfig,
+    beschleunigung_aus_geschwindigkeit,
+    geschwindigkeit_glaetten,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -40,14 +47,21 @@ class GPSTrack:
 
     ERDRADIUS_M = 6_371_000   # mittlerer Erdradius in Metern (Haversine-Formel)
 
-    def __init__(self, pfad: str):
+    def __init__(
+        self,
+        pfad: str | Path,
+        smoothing_config: SpeedSmoothingConfig | None = None,
+    ):
+        self.smoothing_config = (
+            smoothing_config if smoothing_config is not None else SpeedSmoothingConfig()
+        )
         self.df = self._datei_einlesen(pfad)
         self._kinematik_berechnen()
 
-    def _datei_einlesen(self, pfad: str) -> pd.DataFrame:
+    def _datei_einlesen(self, pfad: str | Path) -> pd.DataFrame:
         logger.info(f"Lese GPS-Daten ein aus: {pfad}")
         df = pd.read_csv(pfad, sep=";")
-        df["time"] = pd.to_datetime(df["time"])
+        df["time"] = pd.to_datetime(df["time"], format="ISO8601", utc=True)
         return df
 
     def _distanz_haversine(self, lat1, lon1, lat2, lon2) -> float:
@@ -78,23 +92,41 @@ class GPSTrack:
 
     def _kinematik_berechnen(self) -> None:
         n = len(self.df)
+        if n == 0:
+            self.df["dt_s"] = []
+            self.df["distanz_m"] = []
+            self.df["segment_id"] = []
+            self.df["geschwindigkeit_roh_ms"] = []
+            self.df["geschwindigkeit_geglaettet_ms"] = []
+            self.df["beschleunigung_roh_ms2"] = []
+            self.df["beschleunigung_geglaettet_ms2"] = []
+            self.df["geschwindigkeit_ms"] = []
+            self.df["beschleunigung_ms2"] = []
+            self.df["filter_gueltige_stuetzstelle"] = []
+            self.df["filter_kurzes_intervall"] = []
+            self.df["filter_grosse_zeitluecke"] = []
+            self.df["filter_geschwindigkeitsausreisser"] = []
+            self.df["filter_ungueltiges_intervall"] = []
+            self.df["speed_smoothing_enabled"] = []
+            return
+
+        dt_s = [0.0] * n
         distanz = [0.0] * n
-        geschwindigkeit = [0.0] * n
-        beschleunigung = [0.0] * n
+        geschwindigkeit_roh = [0.0] * n
         steigung_grad = [0.0] * n
         kurs_grad = [0.0] * n
         kompassrichtung = ["N"] * n
 
         for i in range(1, n):
             dt = (self.df["time"].iloc[i] - self.df["time"].iloc[i - 1]).total_seconds()
+            dt_s[i] = dt
 
             d = self._distanz_haversine(
                 self.df["lat"].iloc[i - 1], self.df["lon"].iloc[i - 1],
                 self.df["lat"].iloc[i], self.df["lon"].iloc[i],
             )
             distanz[i] = d
-            geschwindigkeit[i] = d / dt if dt > 0 else 0.0
-            beschleunigung[i] = (geschwindigkeit[i] - geschwindigkeit[i - 1]) / dt if dt > 0 else 0.0
+            geschwindigkeit_roh[i] = d / dt if dt > 0 else 0.0
 
             dh = self.df["ele"].iloc[i] - self.df["ele"].iloc[i - 1]
             steigung_grad[i] = math.degrees(math.atan2(dh, d)) if d > 0 else 0.0
@@ -105,18 +137,58 @@ class GPSTrack:
             )
             kompassrichtung[i] = self._kompassrichtung(kurs_grad[i])
 
+        self.df["dt_s"] = dt_s
         self.df["distanz_m"] = distanz
-        self.df["geschwindigkeit_ms"] = geschwindigkeit
-        self.df["beschleunigung_ms2"] = beschleunigung
         self.df["steigung_grad"] = steigung_grad
         self.df["kurs_grad"] = kurs_grad
         self.df["kompassrichtung"] = kompassrichtung
+
+        self.df["geschwindigkeit_roh_ms"] = geschwindigkeit_roh
+
+        smoothing_result = geschwindigkeit_glaetten(
+            zeitpunkte=self.df["time"],
+            zeitintervalle_s=self.df["dt_s"],
+            rohgeschwindigkeit_ms=self.df["geschwindigkeit_roh_ms"],
+            config=self.smoothing_config,
+        )
+
+        self.df["segment_id"] = smoothing_result.segment_id
+        self.df["geschwindigkeit_geglaettet_ms"] = smoothing_result.geglaettete_geschwindigkeit_ms
+        self.df["filter_gueltige_stuetzstelle"] = smoothing_result.gueltige_stuetzstelle
+        self.df["filter_kurzes_intervall"] = smoothing_result.kurzes_intervall
+        self.df["filter_grosse_zeitluecke"] = smoothing_result.grosse_zeitluecke
+        self.df["filter_geschwindigkeitsausreisser"] = smoothing_result.geschwindigkeitsausreisser
+        self.df["filter_ungueltiges_intervall"] = smoothing_result.ungueltiges_intervall
+
+        self.df["beschleunigung_roh_ms2"] = beschleunigung_aus_geschwindigkeit(
+            zeitpunkte=self.df["time"],
+            geschwindigkeit_ms=self.df["geschwindigkeit_roh_ms"],
+            segment_id=self.df["segment_id"],
+        )
+        self.df["beschleunigung_geglaettet_ms2"] = beschleunigung_aus_geschwindigkeit(
+            zeitpunkte=self.df["time"],
+            geschwindigkeit_ms=self.df["geschwindigkeit_geglaettet_ms"],
+            segment_id=self.df["segment_id"],
+        )
+
+        if self.smoothing_config.enabled:
+            self.df["geschwindigkeit_ms"] = self.df["geschwindigkeit_geglaettet_ms"]
+            self.df["beschleunigung_ms2"] = self.df["beschleunigung_geglaettet_ms2"]
+        else:
+            self.df["geschwindigkeit_ms"] = self.df["geschwindigkeit_roh_ms"]
+            self.df["beschleunigung_ms2"] = self.df["beschleunigung_roh_ms2"]
+
+        self.df["speed_smoothing_enabled"] = self.smoothing_config.enabled
+        self._smoothing_kennzahlen_loggen()
 
     def gesamtstrecke_km(self) -> float:
         return self.df["distanz_m"].sum() / 1000
 
     def durchschnittsgeschwindigkeit_kmh(self) -> float:
-        return self.df["geschwindigkeit_ms"].mean() * 3.6
+        gesamtzeit = self.gesamtzeit_s()
+        if gesamtzeit <= 0:
+            return 0.0
+        return (self.df["distanz_m"].sum() / gesamtzeit) * 3.6
 
     def gesamtzeit_s(self) -> float:
         return (self.df["time"].iloc[-1] - self.df["time"].iloc[0]).total_seconds()
@@ -139,6 +211,48 @@ class GPSTrack:
         print(f"Höhenmeter Anstieg:            {self.hoehenmeter_anstieg():.0f} m")
         print(f"Höhenmeter Abstieg:            {self.hoehenmeter_abstieg():.0f} m")
         print(f"Häufigste Fahrtrichtung:        {self.haufigste_kompassrichtung()}")
+
+    def smoothing_kennzahlen(self) -> dict[str, float | int]:
+        return {
+            "anzahl_gps_punkte": int(len(self.df)),
+            "anzahl_ungueltiger_zeitintervalle": int(self.df["filter_ungueltiges_intervall"].sum()),
+            "anzahl_kurzer_intervalle": int(self.df["filter_kurzes_intervall"].sum()),
+            "anzahl_grosser_zeitluecken": int(self.df["filter_grosse_zeitluecke"].sum()),
+            "anzahl_geschwindigkeitsausreisser": int(self.df["filter_geschwindigkeitsausreisser"].sum()),
+            "anzahl_messabschnitte": int(self.df["segment_id"].nunique()),
+            "max_rohgeschwindigkeit_kmh": float(self.df["geschwindigkeit_roh_ms"].max() * 3.6),
+            "max_geglaettete_geschwindigkeit_kmh": float(self.df["geschwindigkeit_geglaettet_ms"].max() * 3.6),
+            "max_rohbeschleunigung_ms2": float(self.df["beschleunigung_roh_ms2"].max()),
+            "min_rohbeschleunigung_ms2": float(self.df["beschleunigung_roh_ms2"].min()),
+            "max_geglaettete_beschleunigung_ms2": float(self.df["beschleunigung_geglaettet_ms2"].max()),
+            "min_geglaettete_beschleunigung_ms2": float(self.df["beschleunigung_geglaettet_ms2"].min()),
+            "max_aktive_geschwindigkeit_kmh": float(self.df["geschwindigkeit_ms"].max() * 3.6),
+            "max_aktive_beschleunigung_ms2": float(self.df["beschleunigung_ms2"].max()),
+            "min_aktive_beschleunigung_ms2": float(self.df["beschleunigung_ms2"].min()),
+        }
+
+    def _smoothing_kennzahlen_loggen(self) -> None:
+        k = self.smoothing_kennzahlen()
+        logger.info(
+            "Geschwindigkeitsglaettung: %s",
+            "aktiviert" if self.smoothing_config.enabled else "deaktiviert",
+        )
+        logger.info("Anzahl GPS-Punkte: %d", k["anzahl_gps_punkte"])
+        logger.info("Anzahl ungueltiger Zeitintervalle: %d", k["anzahl_ungueltiger_zeitintervalle"])
+        logger.info("Anzahl Intervalle unter min_interval_s: %d", k["anzahl_kurzer_intervalle"])
+        logger.info("Anzahl Zeitluecken ueber max_gap_s: %d", k["anzahl_grosser_zeitluecken"])
+        logger.info("Anzahl Geschwindigkeitsausreisser: %d", k["anzahl_geschwindigkeitsausreisser"])
+        logger.info("Anzahl zusammenhaengender Messabschnitte: %d", k["anzahl_messabschnitte"])
+        logger.info("Maximale Rohgeschwindigkeit: %.2f km/h", k["max_rohgeschwindigkeit_kmh"])
+        logger.info(
+            "Maximale geglaettete Geschwindigkeit: %.2f km/h",
+            k["max_geglaettete_geschwindigkeit_kmh"],
+        )
+        logger.info("Maximale Rohbeschleunigung: %.2f m/s^2", k["max_rohbeschleunigung_ms2"])
+        logger.info(
+            "Maximale geglaettete Beschleunigung: %.2f m/s^2",
+            k["max_geglaettete_beschleunigung_ms2"],
+        )
 
     def __str__(self) -> str:
         return f"GPSTrack({len(self.df)} Punkte, {self.gesamtstrecke_km():.2f} km)"
