@@ -35,7 +35,29 @@ verwendet. Daraus entsteht die Steigung in Grad als
 \begin{equation}
 \varphi_i = \arctan\!\left(\frac{\Delta h_i}{\Delta s_i}\right)
 \end{equation}
-falls $\Delta s_i > 0$ ist, sonst $0$. Der Kurswinkel folgt aus Breiten- und Längengrad über die Anfangskurs-Formel und wird auf $[0,360)$ normalisiert. Daraus ergibt sich die Kompassrichtung: \texttt{N}, \texttt{NO}, \texttt{O}, \texttt{SO}, \texttt{S}, \texttt{SW}, \texttt{W} oder \texttt{NW}.
+falls $\Delta s_i > 0$ ist, sonst $0$. 
+Der Kurswinkel (englisch \emph{initial bearing}) folgt aus Breiten- und Längengrad
+zweier aufeinanderfolgender Punkte über die Formel
+\begin{equation}
+    \theta_i = \operatorname{atan2}\Big(
+        \sin(\Delta\lambda)\cos(\varphi_i),\;
+        \cos(\varphi_{i-1})\sin(\varphi_i) - \sin(\varphi_{i-1})\cos(\varphi_i)\cos(\Delta\lambda)
+    \Big)
+    \label{eq:kurswinkel}
+\end{equation}
+mit $\Delta\lambda = \lambda_i - \lambda_{i-1}$. Da $\operatorname{atan2}$ Werte im Bereich
+$(-180\si{\degree}, 180\si{\degree}]$ liefert, wird das Ergebnis anschlie{\ss}end über
+$\theta_i \bmod 360\si{\degree}$ auf $[0\si{\degree}, 360\si{\degree})$ normalisiert.
+
+Aus dem normalisierten Kurswinkel ergibt sich die Kompassrichtung durch Rundung auf
+den nächstgelegenen $45\si{\degree}$-Sektor:
+\begin{equation}
+    \text{Sektorindex} = \operatorname{round}\!\left(\frac{\theta_i}{45\si{\degree}}\right) \bmod 8
+    \label{eq:kompasssektor}
+\end{equation}
+Die acht Sektoren $0$ bis $7$ entsprechen dabei den Richtungen N, NO, O, SO, S, SW, W
+und NW, beginnend bei $0\si{\degree}$ (Norden) und im Uhrzeigersinn fortlaufend. Ein
+Kurswinkel von z.\,B. $80\si{\degree}$ ergibt so Sektor $2$, also O.
 
 \section{Beschleunigung}
 
