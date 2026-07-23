@@ -1,1 +1,159 @@
-{% extends 'base.html' %}{% block content %}<h1>Simulationsergebnisse</h1><div class="row">{% for label,value in [('Distanz km',track.distanz_m.sum()/1000),('GPS-Punkte',track|length),('Smoothing',meta.smoothing.enabled),('Max. aktiv km/h',track.geschwindigkeit_ms.max()*3.6)] %}<div class="col-md-3"><div class="card p-3"><small>{{label}}</small><strong>{{'%.2f'|format(value) if value is number else value}}</strong></div></div>{%endfor%}</div><h2 class="mt-4">Akkuübersicht</h2><div class="row">{%for n,s in meta.summaries.items()%}<div class="col-md-6"><div class="card p-3"><h3>{{n}}</h3>{%for k,v in s.items()%}<div>{{k}}: {{'%.2f'|format(v) if v is number else v}}</div>{%endfor%}</div></div>{%endfor%}</div><h2 class="mt-4">Zeitreihen</h2><script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>{% for id,col,title in [('speed','geschwindigkeit_ms','Geschwindigkeit'),('power','leistung_W','Leistung'),('soc','soc','Ladezustand'),('current','motorstrom_A','Motorstrom'),('voltage','spannung_V','Spannung')] %}<div id="{{id}}"></div><script>Plotly.newPlot('{{id}}',[{%for n,d in simulations.items()%}{x:{{d.time.tolist()|tojson}},y:{{d[col].tolist()|tojson}},name:'{{n}}'},{%endfor%}],{title:'{{title}}'});</script>{%endfor%}<h2>Karten</h2>{%for n,path in maps.items()%}<h3>{{n}}</h3><iframe src="{{path}}" class="map"></iframe>{%endfor%}{%endblock%}
+{% extends 'base.html' %}
+{% block content %}
+{% set feature_status = meta.get('feature_status', {}) %}
+{% set reverse_status = feature_status.get('reverse_geocoding', {}) %}
+{% set weather_status = feature_status.get('weather', {}) %}
+{% set location_summary = meta.get('location_summary', {}) %}
+{% set weather_summary = meta.get('weather_summary', {}) %}
+{% set location_points = meta.get('location_weather_points', []) %}
+
+<h1>Simulationsergebnisse</h1>
+
+<div class="row g-3">
+  {% for label, value in [('Distanz km', track.distanz_m.sum() / 1000), ('GPS-Punkte', track|length), ('Smoothing', meta.smoothing.enabled), ('Max. aktiv km/h', track.geschwindigkeit_ms.max() * 3.6)] %}
+  <div class="col-md-3">
+    <div class="card h-100 p-3">
+      <small class="text-muted">{{ label }}</small>
+      <strong>{{ '%.2f'|format(value) if value is number else value }}</strong>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<h2 class="mt-4">Akkuübersicht</h2>
+<div class="row g-3">
+  {% for name, summary in meta.summaries.items() %}
+  <div class="col-lg-6">
+    <div class="card h-100 p-3">
+      <h3 class="h5 mb-3">{{ name }}</h3>
+      <div>Strecke vollständig abgeschlossen: {{ 'Ja' if summary.completed_route else 'Nein' }}</div>
+      {% if not summary.completed_route and summary.abort_reason == 'battery_empty' %}
+      <div>Akku leer nach {{ summary.processed_points }} von {{ summary.total_track_points }} Messpunkten.</div>
+      {% elif not summary.completed_route %}
+      <div>Simulation wurde vorzeitig beendet.</div>
+      {% endif %}
+      <div>Verarbeitete Messpunkte: {{ summary.processed_points }}</div>
+      <div>Gesamtpunkte im Track: {{ summary.total_track_points }}</div>
+      <div>Abschluss: {{ '%.2f'|format(summary.completion_percent) }} %</div>
+      <div>Endpunkt: {{ summary.end_point }}</div>
+      <div>End-SoC: {{ '%.2f'|format(summary.final_soc_percent) }} %</div>
+      <div>SoC-Verbrauch: {{ '%.2f'|format(summary.soc_consumption_percent) }} %</div>
+      <div>Max. Leistung: {{ '%.2f'|format(summary.max_power_W) }} W</div>
+      <div>Max. Motorstrom: {{ '%.2f'|format(summary.max_motor_current_A) }} A</div>
+      <div>Max. Drehmoment: {{ '%.2f'|format(summary.max_torque_Nm) }} Nm</div>
+      <div>Min. Spannung: {{ '%.2f'|format(summary.minimum_voltage_V) }} V</div>
+      <div>Traktionsenergie: {{ '%.2f'|format(summary.traction_energy_Wh) }} Wh</div>
+      <div>Bremsenergie: {{ '%.2f'|format(summary.braking_energy_Wh) }} Wh</div>
+    </div>
+  </div>
+  {% endfor %}
+</div>
+
+<h2 class="mt-4">Wetter und Orte entlang der Strecke</h2>
+{% if reverse_status.state == 'inactive' %}
+<div class="alert alert-secondary">Wetterdaten und Ortsinformationen wurden für diesen Lauf nicht geladen.</div>
+{% elif reverse_status.state == 'available' or weather_status.state == 'available' %}
+<div class="alert alert-warning">Wetter- oder Ortsinformationen konnten nicht geladen werden. Die Simulation wurde trotzdem erfolgreich durchgeführt.</div>
+{% endif %}
+
+<div class="row g-3">
+  <div class="col-lg-6">
+    <div class="card h-100 p-3">
+      <h3 class="h5">Start und Ziel</h3>
+      {% if location_summary.sampled_points %}
+      <div>Anzahl der abgefragten Orte: {{ location_summary.sampled_points }}</div>
+      {% endif %}
+      {% if location_summary.provider %}
+      <div>Geocoding-Dienst: {{ location_summary.provider }}</div>
+      {% endif %}
+      {% if location_summary.start %}
+      <div class="mt-2"><strong>Start</strong></div>
+      <div>{{ location_summary.start.address or 'Keine Adresse verfügbar' }}</div>
+      {% if location_summary.start.latitude is not none and location_summary.start.longitude is not none %}
+      <div>{{ '%.4f'|format(location_summary.start.latitude) }}, {{ '%.4f'|format(location_summary.start.longitude) }}</div>
+      {% endif %}
+      {% endif %}
+      {% if location_summary.end %}
+      <div class="mt-2"><strong>Ziel</strong></div>
+      <div>{{ location_summary.end.address or 'Keine Adresse verfügbar' }}</div>
+      {% if location_summary.end.latitude is not none and location_summary.end.longitude is not none %}
+      <div>{{ '%.4f'|format(location_summary.end.latitude) }}, {{ '%.4f'|format(location_summary.end.longitude) }}</div>
+      {% endif %}
+      {% endif %}
+    </div>
+  </div>
+  <div class="col-lg-6">
+    <div class="card h-100 p-3">
+      <h3 class="h5">Wetterübersicht</h3>
+      {% if weather_summary.sampled_points %}
+      <div>Anzahl der abgefragten Orte: {{ weather_summary.sampled_points }}</div>
+      {% endif %}
+      {% if weather_summary.source %}
+      <div>Datenquelle: {{ weather_summary.source }}</div>
+      {% endif %}
+      {% if weather_summary.get('temperature_min_C') is not none %}<div>Min. Temperatur: {{ '%.1f'|format(weather_summary.get('temperature_min_C')) }} °C</div>{% endif %}
+      {% if weather_summary.get('temperature_average_C') is not none %}<div>Durchschnittliche Temperatur: {{ '%.1f'|format(weather_summary.get('temperature_average_C')) }} °C</div>{% endif %}
+      {% if weather_summary.get('temperature_max_C') is not none %}<div>Max. Temperatur: {{ '%.1f'|format(weather_summary.get('temperature_max_C')) }} °C</div>{% endif %}
+      {% if weather_summary.get('wind_speed_average_kmh') is not none %}<div>Durchschnittliche Windgeschwindigkeit: {{ '%.1f'|format(weather_summary.get('wind_speed_average_kmh')) }} km/h</div>{% endif %}
+      {% if weather_summary.get('wind_speed_max_kmh') is not none %}<div>Max. Windgeschwindigkeit: {{ '%.1f'|format(weather_summary.get('wind_speed_max_kmh')) }} km/h</div>{% endif %}
+      {% if weather_summary.get('precipitation_average_mm') is not none %}<div>Durchschnittlicher Niederschlag: {{ '%.1f'|format(weather_summary.get('precipitation_average_mm')) }} mm</div>{% endif %}
+      {% if weather_summary.get('precipitation_max_mm') is not none %}<div>Max. Niederschlag: {{ '%.1f'|format(weather_summary.get('precipitation_max_mm')) }} mm</div>{% endif %}
+      {% if weather_summary.get('humidity_average_percent') is not none %}<div>Durchschnittliche Luftfeuchtigkeit: {{ '%.1f'|format(weather_summary.get('humidity_average_percent')) }} %</div>{% endif %}
+    </div>
+  </div>
+</div>
+
+{% if location_points and location_points|length > 0 %}
+<div class="table-responsive mt-3">
+  <table class="table table-sm table-striped align-middle">
+    <thead>
+      <tr>
+        <th>Typ</th>
+        <th>Track-Index</th>
+        <th>Adresse</th>
+        <th>Koordinaten</th>
+        <th>Temperatur</th>
+        <th>Wind</th>
+        <th>Niederschlag</th>
+        <th>Luftfeuchtigkeit</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for point in location_points %}
+      <tr>
+        <td>{% if loop.first %}Start{% elif loop.last %}Ziel{% else %}Zwischenpunkt{% endif %}</td>
+        <td>{{ point.track_index if point.track_index is not none else '–' }}</td>
+        <td>{{ point.address if point.address else 'Keine Adresse verfügbar' }}</td>
+        <td>
+          {% if point.latitude is not none and point.longitude is not none %}
+          {{ '%.4f'|format(point.latitude) }}, {{ '%.4f'|format(point.longitude) }}
+          {% else %}
+          –
+          {% endif %}
+        </td>
+        <td>{% if point.temperature_C is not none %}{{ '%.1f'|format(point.temperature_C) }} °C{% else %}–{% endif %}</td>
+        <td>{% if point.wind_speed_kmh is not none %}{{ '%.1f'|format(point.wind_speed_kmh) }} km/h{% else %}–{% endif %}</td>
+        <td>{% if point.precipitation_mm is not none %}{{ '%.1f'|format(point.precipitation_mm) }} mm{% else %}–{% endif %}</td>
+        <td>{% if point.humidity_percent is not none %}{{ '%.0f'|format(point.humidity_percent) }} %{% else %}–{% endif %}</td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% endif %}
+
+<h2 class="mt-4">Zeitreihen</h2>
+<script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>
+{% for id, col, title in [('speed', 'geschwindigkeit_ms', 'Geschwindigkeit'), ('power', 'leistung_W', 'Leistung'), ('soc', 'soc', 'Ladezustand'), ('current', 'motorstrom_A', 'Motorstrom'), ('voltage', 'spannung_V', 'Spannung')] %}
+<div id="{{ id }}"></div>
+<script>
+  Plotly.newPlot('{{ id }}', [{% for n, d in simulations.items() %}{x: {{ d.time.tolist()|tojson }}, y: {{ d[col].tolist()|tojson }}, name: '{{ n }}'},{% endfor %}], {title: '{{ title }}'});
+</script>
+{% endfor %}
+
+<h2 class="mt-4">Karten</h2>
+{% for n, path in maps.items() %}
+<h3>{{ n }}</h3>
+<iframe src="{{ path }}" class="map"></iframe>
+{% endfor %}
+{% endblock %}
