@@ -1,1 +1,146 @@
-{% extends 'base.html' %}{% block content %}<h1>Simulationsergebnisse</h1><div class="row">{% for label,value in [('Distanz km',track.distanz_m.sum()/1000),('GPS-Punkte',track|length),('Smoothing',meta.smoothing.enabled),('Max. aktiv km/h',track.geschwindigkeit_ms.max()*3.6)] %}<div class="col-md-3"><div class="card p-3"><small>{{label}}</small><strong>{{'%.2f'|format(value) if value is number else value}}</strong></div></div>{%endfor%}</div><h2 class="mt-4">Akkuübersicht</h2><div class="row">{%for n,s in meta.summaries.items()%}<div class="col-md-6"><div class="card p-3"><h3>{{n}}</h3>{%for k,v in s.items()%}<div>{{k}}: {{'%.2f'|format(v) if v is number else v}}</div>{%endfor%}</div></div>{%endfor%}</div><h2 class="mt-4">Zeitreihen</h2><script src="https://cdn.plot.ly/plotly-2.35.2.min.js"></script>{% for id,col,title in [('speed','geschwindigkeit_ms','Geschwindigkeit'),('power','leistung_W','Leistung'),('soc','soc','Ladezustand'),('current','motorstrom_A','Motorstrom'),('voltage','spannung_V','Spannung')] %}<div id="{{id}}"></div><script>Plotly.newPlot('{{id}}',[{%for n,d in simulations.items()%}{x:{{d.time.tolist()|tojson}},y:{{d[col].tolist()|tojson}},name:'{{n}}'},{%endfor%}],{title:'{{title}}'});</script>{%endfor%}<h2>Karten</h2>{%for n,path in maps.items()%}<h3>{{n}}</h3><iframe src="{{path}}" class="map"></iframe>{%endfor%}{%endblock%}
+{% extends 'base.html' %}
+{% block content %}
+{% set active_run_id = meta.run_id if meta.run_id is defined and meta.run_id else run_id %}
+{% set route_summary = meta.route_summary if meta.route_summary is defined else {} %}
+{% set summaries = meta.summaries if meta.summaries is defined else {} %}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <h1 class="mb-1">Simulationsergebnis</h1>
+    <p class="text-muted mb-0">Run {{ active_run_id }}</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="{{ url_for('web.result_pdf', run_id=active_run_id) }}">PDF-Bericht herunterladen</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('web.index') }}">Neue Simulation</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('web.parameter_study') }}">Parameterstudie</a>
+  </div>
+</div>
+
+<div class="row g-3 mb-4">
+  <div class="col-lg-4">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <h2 class="h5">Laufdaten</h2>
+        <table class="table table-sm mb-0">
+          <tbody>
+            <tr><th scope="row">Run-ID</th><td>{{ active_run_id }}</td></tr>
+            <tr><th scope="row">Eingabedatei</th><td>{{ meta.source_file_name if meta.source_file_name is defined else 'n. a.' }}</td></tr>
+            <tr><th scope="row">Akkuoptionen</th><td>{{ meta.battery_options if meta.battery_options is defined else 'n. a.' }}</td></tr>
+            <tr><th scope="row">Glättung</th><td>{% if meta.smoothing is defined and meta.smoothing.enabled %}aktiv{% elif meta.smoothing is defined %}deaktiviert{% else %}n. a.{% endif %}</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </div>
+  <div class="col-lg-8">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <h2 class="h5">Karten</h2>
+        <div class="d-flex flex-wrap gap-2">
+          {% if maps.route is defined %}<a class="btn btn-outline-primary" href="{{ maps.route }}" target="_blank" rel="noopener">Streckenkarte</a>{% endif %}
+          {% if 'LiPo' in simulations and maps.LiPo is defined %}
+          <a class="btn btn-outline-primary" href="{{ maps.LiPo }}" target="_blank" rel="noopener">LiPo-Karte</a>
+          {% endif %}
+          {% if 'NMC' in simulations and maps.NMC is defined %}
+          <a class="btn btn-outline-primary" href="{{ maps.NMC }}" target="_blank" rel="noopener">NMC-Karte</a>
+          {% endif %}
+        </div>
+        <p class="text-muted mt-3 mb-0">Die Karten öffnen die gespeicherten HTML-Ergebnisse aus dem Run-Verzeichnis.</p>
+      </div>
+    </div>
+  </div>
+</div>
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <h2 class="h4">Streckenübersicht</h2>
+    <div class="table-responsive">
+      <table class="table table-sm align-middle mb-0">
+        <tbody>
+          <tr><th scope="row">Gesamtdistanz [km]</th><td>{{ route_summary.total_distance_km|default('n. a.') }}</td></tr>
+          <tr><th scope="row">Gesamtdauer [s]</th><td>{{ route_summary.duration_s|default('n. a.') }}</td></tr>
+          <tr><th scope="row">GPS-Punkte</th><td>{{ route_summary.gps_point_count|default('n. a.') }}</td></tr>
+          <tr><th scope="row">Durchschnittsgeschwindigkeit [km/h]</th><td>{{ route_summary.average_speed_kmh|default('n. a.') }}</td></tr>
+          <tr><th scope="row">Maximale Rohgeschwindigkeit [km/h]</th><td>{{ route_summary.max_raw_speed_kmh|default('n. a.') }}</td></tr>
+          <tr><th scope="row">Maximale aktive Geschwindigkeit [km/h]</th><td>{{ route_summary.max_active_speed_kmh|default('n. a.') }}</td></tr>
+          <tr><th scope="row">Höhengewinn [m]</th><td>{{ route_summary.elevation_gain_m|default('n. a.') }}</td></tr>
+          <tr><th scope="row">Kurze Messintervalle</th><td>{{ route_summary.short_interval_count|default('n. a.') }}</td></tr>
+          <tr><th scope="row">Große Zeitlücken</th><td>{{ route_summary.large_gap_count|default('n. a.') }}</td></tr>
+          <tr><th scope="row">Geschwindigkeitsausreißer</th><td>{{ route_summary.speed_outlier_count|default('n. a.') }}</td></tr>
+          <tr><th scope="row">Gültige Filterstützstellen</th><td>{{ route_summary.valid_smoothing_support_point_count|default('n. a.') }}</td></tr>
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+<div class="mb-4">
+  <h2 class="h4 mb-3">Akkuergebnisse</h2>
+  {% if summaries %}
+    <div class="row g-3">
+      {% for battery_name, summary in summaries.items() %}
+        <div class="col-12 col-xl-6">
+          <div class="card h-100 shadow-sm {% if not summary.completed_route %}border-warning{% endif %}">
+            <div class="card-header d-flex justify-content-between align-items-center">
+              <h3 class="h5 mb-0">{{ battery_name }}</h3>
+              <span class="badge {% if summary.completed_route %}text-bg-success{% else %}text-bg-warning{% endif %}">
+                {% if summary.completed_route %}Strecke vollständig{% else %}Strecke unvollständig{% endif %}
+              </span>
+            </div>
+            <div class="card-body">
+              {% if not summary.completed_route %}
+                <div class="alert alert-warning">
+                  Die Route wurde für diesen Akkutyp nicht vollständig abgeschlossen. Die Endwerte beziehen sich nur auf den simulierten Abschnitt.
+                </div>
+              {% endif %}
+              <div class="table-responsive">
+                <table class="table table-sm align-middle mb-0">
+                  <tbody>
+                    <tr><th scope="row">Finaler SoC [%]</th><td>{{ summary.final_soc_percent|round(2) }}</td></tr>
+                    <tr><th scope="row">SoC-Verbrauch [%]</th><td>{{ summary.soc_consumption_percent|round(2) }}</td></tr>
+                    <tr><th scope="row">Traktionsenergie [Wh]</th><td>{{ summary.traction_energy_Wh|round(1) }}</td></tr>
+                    <tr><th scope="row">Bremsenergie [Wh]</th><td>{{ summary.braking_energy_Wh|round(1) }}</td></tr>
+                    <tr><th scope="row">Maximale Leistung [W]</th><td>{{ summary.max_power_W|round(1) }}</td></tr>
+                    <tr><th scope="row">Maximaler Motorstrom [A]</th><td>{{ summary.max_motor_current_A|round(1) }}</td></tr>
+                    <tr><th scope="row">Maximales Drehmoment [Nm]</th><td>{{ summary.max_torque_Nm|round(1) }}</td></tr>
+                    <tr><th scope="row">Minimale Akkuspannung [V]</th><td>{{ summary.minimum_voltage_V|round(2) }}</td></tr>
+                    <tr><th scope="row">Simulierte GPS-Punkte</th><td>{{ summary.simulated_point_count }}</td></tr>
+                    <tr><th scope="row">Erwartete GPS-Punkte</th><td>{{ summary.expected_point_count }}</td></tr>
+                    <tr><th scope="row">Letzter simulierter Punkt</th><td>{{ summary.end_point }}</td></tr>
+                  </tbody>
+                </table>
+              </div>
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% else %}
+    <div class="alert alert-info">Für diesen Lauf liegen keine Akkuergebnisse vor.</div>
+  {% endif %}
+</div>
+
+<div class="mb-4">
+  <h2 class="h4 mb-3">Diagramme</h2>
+  <div class="row g-3">
+    {% set plot_labels = {
+      'elevation': 'Höhenprofil der Fahrt',
+      'speed_comparison': 'Roh- und geglättete Geschwindigkeit',
+      'lipo': 'LiPo-Zeitverlauf',
+      'nmc': 'NMC-Zeitverlauf',
+      'soc_comparison': 'SoC-Vergleich'
+    } %}
+    {% for key, rel_path in plot_files.items() %}
+      {% if rel_path %}
+        <div class="col-12 col-xl-6">
+          <figure class="card shadow-sm h-100 mb-0">
+            <div class="card-body">
+              <figcaption class="fw-semibold mb-2">{{ plot_labels.get(key, key) }}</figcaption>
+              <img class="img-fluid rounded" src="{{ url_for('web.output_file', run_id=active_run_id, filename=rel_path) }}" alt="{{ plot_labels.get(key, key) }}">
+            </div>
+          </figure>
+        </div>
+      {% endif %}
+    {% endfor %}
+  </div>
+</div>
+{% endblock %}

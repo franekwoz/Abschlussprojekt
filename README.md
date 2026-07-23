@@ -42,6 +42,62 @@ eine Ein-Faktor-Parameterstudie mit CSV-Export. Formularänderungen schreiben
 keine YAML-Dateien um. Web-Ergebnisse liegen unter `output/web/<id>/`; alte
 Ordner können gelöscht werden. Tests: `pytest`.
 
+### Neuerungen in der Weboberfläche
+
+- Normalen Simulationen kann nun ein PDF-Bericht direkt aus dem Ergebnis heraus heruntergeladen werden.
+- Die Parameterstudie enthält jetzt eine deterministische, datenbasierte Interpretation auf Basis des gespeicherten DataFrames.
+- Der Bericht und die Interpretation werden vollständig aus gespeicherten Ergebnisdateien erzeugt; die Simulation wird dafür nicht erneut ausgeführt.
+
+### PDF-Bericht
+
+Der Download erfolgt über `GET /results/<run_id>/pdf`. Der Bericht heißt `simulation_report.pdf` und liegt im jeweiligen Run-Verzeichnis unter `output/web/<run_id>/`.
+
+Enthalten sind unter anderem:
+
+- Projektdaten und Laufzeit
+- Fahrrad- und Akkukonfiguration
+- Status der Geschwindigkeitsglättung
+- Streckenübersicht
+- Akkuergebnisse für LiPo und/oder NMC
+- vorhandene statische Diagramme aus `plot_utils.py`
+- ein kurzer Modellhinweis
+
+### Parameterstudien-Interpretation
+
+Die Ergebnisse der Parameterstudie werden aus den tatsächlichen CSV-Daten interpretiert, ohne externe KI oder Zufallstexte. Die Auswertung unterscheidet monoton steigende, monoton fallende, annähernd konstante und nicht monotone Verläufe.
+
+Für numerische Kennwerte werden unter anderem berechnet:
+
+- Wert am kleinsten und größten Parameterpunkt
+- absolute Änderung
+- relative Änderung, sofern der Ausgangswert nicht nahe null liegt
+- Minimum und Maximum mit zugehörigem Parameterwert
+- Pearson-Korrelation
+- lineare Regression mit Steigung und $R^2$, sofern sinnvoll
+
+Die Sensitivität wird als lokaler Einfluss im untersuchten Bereich klassifiziert:
+
+- unter 2 %: geringer Einfluss
+- 2 % bis 10 %: mittlerer Einfluss
+- über 10 %: starker Einfluss
+
+Diese Einstufung gilt nur für die ausgewählte GPS-Strecke, den untersuchten Parameterbereich, die gewählte Fahrradkonfiguration, die gewählte Batteriekonfiguration und das implementierte Modell.
+
+Wenn der exakte Ausgangswert nicht Teil der Studie ist, wird der nächstgelegene simulierte Stützpunkt markiert und entsprechend benannt. Incomplete oder nicht vollständig abgeschlossene Fahrten werden sichtbar als solche gekennzeichnet.
+
+### Tests
+
+Die Test-Suite wird mit `pytest` ausgeführt. Für die aktuelle Änderung sind insbesondere diese Bereiche abgedeckt:
+
+- PDF-Erzeugung aus gespeicherten Ergebnisdaten
+- sichere PDF-Route und Run-Verzeichnis-Prüfung
+- Parameterstudien-Interpretation und Grenzfälle
+- bestehende Geschwindigkeitsglättung
+
+### Abhängigkeiten
+
+Für den PDF-Bericht wird `reportlab` benötigt. Die Installation erfolgt über `pip install -r requirements.txt`.
+
 ### Input
 
 The main input is the GPS track file at `data/final_project_input_data.csv`. The file is read as semicolon-separated CSV data and is expected to contain at least these columns:

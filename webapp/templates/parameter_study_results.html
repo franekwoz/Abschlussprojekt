@@ -1,1 +1,158 @@
-{% extends 'base.html' %}{%block content%}<h1>Parameterstudie: {{parameter}}</h1><a class="btn btn-outline-primary" href="{{url_for('web.study_csv',run_id=run_id)}}">CSV herunterladen</a><div class="table-responsive"><table class="table table-sm"><thead><tr>{%for c in columns%}<th>{{c}}</th>{%endfor%}</tr></thead><tbody>{%for r in rows%}<tr>{%for c in columns%}<td>{{r[c]}}</td>{%endfor%}</tr>{%endfor%}</tbody></table></div>{%endblock%}
+{% extends 'base.html' %}
+{% block content %}
+{% set battery_items = explanation.battery_analyses.items() %}
+<div class="d-flex flex-column flex-lg-row justify-content-between align-items-start gap-3 mb-4">
+  <div>
+    <h1 class="mb-1">Parameterstudie</h1>
+    <p class="text-muted mb-0">Run {{ run_id }} · Parameter {{ explanation.parameter_label }}</p>
+  </div>
+  <div class="d-flex flex-wrap gap-2">
+    <a class="btn btn-primary" href="{{ url_for('web.study_csv', run_id=run_id) }}">CSV herunterladen</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('web.parameter_study') }}">Neue Parameterstudie</a>
+    <a class="btn btn-outline-secondary" href="{{ url_for('web.index') }}">Zur Simulation</a>
+  </div>
+</div>
+
+<div class="card border-0 shadow-sm mb-4 bg-body-tertiary">
+  <div class="card-body">
+    <h2 class="h4 mb-3">Interpretation der Parameterstudie</h2>
+    <h2 class="h4">Kurzfazit</h2>
+    <p class="lead mb-0">{{ explanation.summary }}</p>
+  </div>
+</div>
+
+{% if explanation.warnings %}
+  <div class="mb-4">
+    <h2 class="h5">Warnungen und Einschränkungen</h2>
+    {% for warning in explanation.warnings %}
+      <div class="alert alert-warning mb-2">{{ warning }}</div>
+    {% endfor %}
+  </div>
+{% endif %}
+
+<div class="row g-4 mb-4">
+  <div class="col-12 col-lg-5">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <h2 class="h4">Bedeutung des Parameters</h2>
+        <table class="table table-sm mb-3">
+          <tbody>
+            <tr><th scope="row">Parametername</th><td>{{ explanation.parameter_label }}</td></tr>
+            <tr><th scope="row">Einheit</th><td>{{ explanation.parameter_unit }}</td></tr>
+            <tr><th scope="row">Ausgangswert</th><td>{{ explanation.baseline_value|round(4) }}</td></tr>
+            <tr><th scope="row">Untersuchte Spanne</th><td>{{ parameter_range_text }}</td></tr>
+          </tbody>
+        </table>
+        <p class="mb-0">{{ explanation.physical_explanation }}</p>
+      </div>
+    </div>
+  </div>
+  <div class="col-12 col-lg-7">
+    <div class="card h-100 shadow-sm">
+      <div class="card-body">
+        <h2 class="h4">Berechnungsdetails</h2>
+        <p class="text-muted">Die Klassifikation basiert nur auf der ausgewählten Route, dem untersuchten Parameterbereich, der gewählten Fahrrad- und Batteriekonfiguration sowie dem implementierten Modell.</p>
+        <div class="accordion accordion-flush" id="analysisAccordion">
+          {% for battery_name, analyses in battery_items %}
+            <div class="accordion-item">
+              <h3 class="accordion-header" id="heading-{{ loop.index }}">
+                <button class="accordion-button {% if not loop.first %}collapsed{% endif %}" type="button" data-bs-toggle="collapse" data-bs-target="#collapse-{{ loop.index }}" aria-expanded="{{ 'true' if loop.first else 'false' }}" aria-controls="collapse-{{ loop.index }}">
+                  {{ battery_name }}
+                </button>
+              </h3>
+              <div id="collapse-{{ loop.index }}" class="accordion-collapse collapse {% if loop.first %}show{% endif %}" aria-labelledby="heading-{{ loop.index }}" data-bs-parent="#analysisAccordion">
+                <div class="accordion-body">
+                  {% for analysis in analyses %}
+                    <div class="border rounded-3 p-3 mb-3">
+                      <div class="d-flex flex-column flex-md-row justify-content-between gap-2 align-items-start">
+                        <div>
+                          <h4 class="h5 mb-1">{{ analysis.label }}</h4>
+                          <p class="mb-2">{{ analysis.text }}</p>
+                        </div>
+                        <span class="badge text-bg-secondary">{{ analysis.trend }}</span>
+                      </div>
+
+                      {% if analysis.warnings %}
+                        {% for warning in analysis.warnings %}
+                          <div class="alert alert-warning py-2 my-2">{{ warning }}</div>
+                        {% endfor %}
+                      {% endif %}
+
+                      <details class="mt-2">
+                        <summary class="fw-semibold">Berechnungsdetails</summary>
+                        <div class="table-responsive mt-3">
+                          <table class="table table-sm align-middle mb-0">
+                            <tbody>
+                              <tr><th scope="row">Trendklassifikation</th><td>{{ analysis.trend }}</td></tr>
+                              <tr><th scope="row">Sensitivität</th><td>{{ analysis.sensitivity }}</td></tr>
+                              <tr><th scope="row">Minimum</th><td>{{ analysis.minimum_value if analysis.minimum_value is not none else 'n. a.' }} bei {{ analysis.minimum_parameter_value if analysis.minimum_parameter_value is not none else 'n. a.' }}</td></tr>
+                              <tr><th scope="row">Maximum</th><td>{{ analysis.maximum_value if analysis.maximum_value is not none else 'n. a.' }} bei {{ analysis.maximum_parameter_value if analysis.maximum_parameter_value is not none else 'n. a.' }}</td></tr>
+                              <tr><th scope="row">Wert am ersten Stützpunkt</th><td>{{ analysis.first_value if analysis.first_value is not none else 'n. a.' }}</td></tr>
+                              <tr><th scope="row">Wert am letzten Stützpunkt</th><td>{{ analysis.last_value if analysis.last_value is not none else 'n. a.' }}</td></tr>
+                              <tr><th scope="row">Absolute Änderung</th><td>{{ analysis.absolute_change if analysis.absolute_change is not none else 'n. a.' }}</td></tr>
+                              <tr><th scope="row">Relative Änderung [%]</th><td>{{ analysis.relative_change_percent if analysis.relative_change_percent is not none else 'n. a.' }}</td></tr>
+                              <tr><th scope="row">Korrelation</th><td>{{ analysis.correlation if analysis.correlation is not none else 'n. a.' }}</td></tr>
+                              <tr><th scope="row">Regressionssteigung</th><td>{{ analysis.regression_slope if analysis.regression_slope is not none else 'n. a.' }}</td></tr>
+                              <tr><th scope="row">R²</th><td>{{ analysis.r_squared if analysis.r_squared is not none else 'n. a.' }}</td></tr>
+                            </tbody>
+                          </table>
+                        </div>
+                      </details>
+                    </div>
+                  {% endfor %}
+                </div>
+              </div>
+            </div>
+          {% endfor %}
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+{% if explanation.battery_comparison %}
+  <div class="card shadow-sm mb-4">
+    <div class="card-body">
+      <h2 class="h4">Vergleich der Akkutypen</h2>
+      {% for item in explanation.battery_comparison %}
+        <p class="mb-2">{{ item }}</p>
+      {% endfor %}
+    </div>
+  </div>
+{% endif %}
+
+<div class="card shadow-sm mb-4">
+  <div class="card-body">
+    <div class="d-flex flex-column flex-md-row justify-content-between align-items-start gap-2 mb-3">
+      <h2 class="h4 mb-0">Vollständige Ergebnis-Tabelle</h2>
+      <p class="text-muted mb-0">Markierte Zeile: {% if explanation.exact_baseline_included %}exakter Ausgangswert{% else %}nächstgelegener simulierter Stützpunkt{% endif %}</p>
+    </div>
+    <div class="table-responsive">
+      <table class="table table-sm table-striped table-hover align-middle">
+        <thead>
+          <tr>
+            {% for column in columns %}
+              <th scope="col">{{ column }}</th>
+            {% endfor %}
+          </tr>
+        </thead>
+        <tbody>
+          {% for row in rows %}
+            <tr class="{% if row.parameter_value == highlight_value %}{% if explanation.exact_baseline_included %}table-primary{% else %}table-warning{% endif %}{% endif %}">
+              {% for column in columns %}
+                <td>{{ row[column] }}</td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+  </div>
+</div>
+
+{% if not explanation.exact_baseline_included %}
+  <div class="alert alert-warning">
+    Der Ausgangswert ist in den Studienpunkten nicht exakt enthalten. Markiert ist der nächstgelegene simulierte Stützpunkt.
+  </div>
+{% endif %}
+{% endblock %}

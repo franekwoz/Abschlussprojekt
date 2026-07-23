@@ -10,3 +10,4 @@ PyYAML
 Flask
 plotly
 pytest
+reportlab
