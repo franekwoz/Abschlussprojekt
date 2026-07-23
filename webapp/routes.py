@@ -52,11 +52,27 @@ def track_for_request():
 @bp.route("/")
 def index():
     bike,smooth=defaults(); return render_template("index.html", bike=bike, smooth=smooth)
+
+@bp.route("/favicon.ico")
+def favicon():
+    return "", 204
+
 @bp.route("/simulate",methods=["POST"])
 def simulate():
     try:
-      bike,smooth,battery=form_values(request.form); result=run_simulation(track_for_request(),bike,smooth,battery,current_app.config["WEB_OUTPUT"]/uuid.uuid4().hex)
-      session["run_dir"]=str(result.output_dir); return redirect(url_for("web.results",run_id=result.run_id))
+        bike, smooth, battery = form_values(request.form)
+        mit_orten_und_wetter = "mit_orten_und_wetter" in request.form
+        result = run_simulation(
+            track_for_request(),
+            bike,
+            smooth,
+            battery,
+            current_app.config["WEB_OUTPUT"] / uuid.uuid4().hex,
+            mit_orten_und_wetter=mit_orten_und_wetter,
+            anzahl_wegpunkte=6,
+        )
+        session["run_dir"] = str(result.output_dir)
+        return redirect(url_for("web.results", run_id=result.run_id))
     except Exception as exc: flash(str(exc),"danger"); return redirect(url_for("web.index"))
 @bp.route("/results/<run_id>")
 def results(run_id):

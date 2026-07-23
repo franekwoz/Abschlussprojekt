@@ -1,1 +1,66 @@
-{% extends 'base.html' %}{% block content %}<h1>Simulation</h1><p>GPS-Strecke, Fahrzeug und Akkus konfigurieren.</p><form method="post" action="{{url_for('web.simulate')}}" enctype="multipart/form-data" data-submit><div class="row g-3"><div class="col-md-6"><label class="form-label">GPS-CSV (optional)</label><input class="form-control" type="file" name="track" accept=".csv"><small>Semikolon-getrennt; time, lat, lon, ele.</small></div>{% for k,v in bike.items() %}<div class="col-md-4"><label class="form-label">{{k}}</label><input class="form-control" type="number" step="any" min="0" name="{{k}}" value="{{v}}" required></div>{% endfor %}<div class="col-md-4"><label>Kapazität [Ah]</label><input class="form-control" name="capacity_ah" type="number" step="any" value="10" min=".01"></div><div class="col-md-4"><label>Initialer SoC [0–1]</label><input class="form-control" name="initial_soc" type="number" step=".01" value="1" min="0" max="1"></div><div class="col-md-4"><label>Parallele Packs</label><input class="form-control" name="n_parallel" type="number" value="1" min="1"></div></div><div class="my-3 form-check form-switch"><input class="form-check-input" type="checkbox" name="smoothing_enabled" id="smooth" {% if smooth.enabled %}checked{%endif%}><label class="form-check-label" for="smooth">Geschwindigkeitsglättung aktivieren</label></div><details><summary>Erweiterte Filtereinstellungen</summary><div class="row mt-2">{% for k in ['min_interval_s','max_gap_s','median_window_s','time_constant_s','max_reasonable_speed_kmh'] %}<div class="col-md-3"><label>{{k}}</label><input class="form-control" type="number" step="any" name="{{k}}" value="{{smooth|attr(k)}}" required></div>{%endfor%}</div></details><div class="my-3">{% for n,label in [('lipo','LiPo'),('nmc','NMC')] %}<div class="form-check form-check-inline"><input class="form-check-input" type="checkbox" name="{{n}}" checked id="{{n}}"><label class="form-check-label" for="{{n}}">{{label}}</label></div>{%endfor%}</div><button class="btn btn-primary">Simulation starten</button></form>{% endblock %}
+{% extends 'base.html' %}
+{% block content %}
+<h1>Simulation</h1>
+<p>GPS-Strecke, Fahrzeug und Akkus konfigurieren.</p>
+
+<form method="post" action="{{ url_for('web.simulate') }}" enctype="multipart/form-data" data-submit>
+  <div class="row g-3">
+    <div class="col-md-6">
+      <label class="form-label">GPS-CSV (optional)</label>
+      <input class="form-control" type="file" name="track" accept=".csv">
+      <small class="text-muted">Semikolon-getrennt; time, lat, lon, ele.</small>
+    </div>
+    {% for k, v in bike.items() %}
+    <div class="col-md-4">
+      <label class="form-label">{{ k }}</label>
+      <input class="form-control" type="number" step="any" min="0" name="{{ k }}" value="{{ v }}" required>
+    </div>
+    {% endfor %}
+    <div class="col-md-4">
+      <label class="form-label">Kapazität [Ah]</label>
+      <input class="form-control" name="capacity_ah" type="number" step="any" value="10" min=".01">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Initialer SoC [0-1]</label>
+      <input class="form-control" name="initial_soc" type="number" step=".01" value="1" min="0" max="1">
+    </div>
+    <div class="col-md-4">
+      <label class="form-label">Parallele Packs</label>
+      <input class="form-control" name="n_parallel" type="number" value="1" min="1">
+    </div>
+  </div>
+
+  <div class="my-3 form-check form-switch">
+    <input class="form-check-input" type="checkbox" name="smoothing_enabled" id="smooth" {% if smooth.enabled %}checked{% endif %}>
+    <label class="form-check-label" for="smooth">Geschwindigkeitsglättung aktivieren</label>
+  </div>
+
+  <div class="my-3 form-check form-switch">
+    <input class="form-check-input" type="checkbox" name="mit_orten_und_wetter" id="mit_orten_und_wetter" checked>
+    <label class="form-check-label" for="mit_orten_und_wetter">Wetterdaten und Ortsinformationen laden</label>
+  </div>
+
+  <details>
+    <summary>Erweiterte Filtereinstellungen</summary>
+    <div class="row mt-2">
+      {% for k in ['min_interval_s', 'max_gap_s', 'median_window_s', 'time_constant_s', 'max_reasonable_speed_kmh'] %}
+      <div class="col-md-3">
+        <label class="form-label">{{ k }}</label>
+        <input class="form-control" type="number" step="any" name="{{ k }}" value="{{ smooth|attr(k) }}" required>
+      </div>
+      {% endfor %}
+    </div>
+  </details>
+
+  <div class="my-3">
+    {% for n, label in [('lipo', 'LiPo'), ('nmc', 'NMC')] %}
+    <div class="form-check form-check-inline">
+      <input class="form-check-input" type="checkbox" name="{{ n }}" checked id="{{ n }}">
+      <label class="form-check-label" for="{{ n }}">{{ label }}</label>
+    </div>
+    {% endfor %}
+  </div>
+
+  <button class="btn btn-primary">Simulation starten</button>
+</form>
+{% endblock %}
