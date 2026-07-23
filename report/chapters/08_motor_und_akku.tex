@@ -55,4 +55,30 @@ Die zentralen Kennwerte von Motor- und Akkumodell sind:
 
 \section{Bremswiderstand und Rekuperation}
 
-Entsteht beim Bergabfahren oder Bremsen ein negativer Motorstrom, steigt der Ladezustand. Würde er über 100\,\% steigen, begrenzt das Programm den Strom und wandelt den Rest über den Bremswiderstand in Wärme um. Im aktuellen Datensatz tritt dieser Fall nicht auf; der Wert bleibt in beiden Läufen bei null.
+Entsteht beim Bergabfahren oder Bremsen ein negativer Motorstrom, steigt der Ladezustand. Würde er über 100\,\% steigen, begrenzt das Programm den Strom und wandelt den Rest über den Bremswiderstand in Wärme um (gespeichert in \texttt{letzte\_dissipierte\_leistung\_W}). Im aktuellen Datensatz tritt dieser Fall nicht auf; der Wert bleibt in beiden Läufen bei null.
+Die Begrenzung erfolgt, indem \texttt{apply\_current()} zunächst den regulären
+SoC-Update nach Gleichung~\eqref{eq:soc_update} berechnet. Würde der neue Ladezustand
+$100\,\%$ überschreiten, wird stattdessen der maximal zulässige Ladestrom
+$I_{\mathrm{erlaubt}}$ bestimmt, der den Akku exakt auf $\mathrm{SoC} = 1$ bringt:
+\begin{equation}
+    I_{\mathrm{erlaubt}} = -\frac{(1 - \mathrm{SoC}_k)\,C_{\mathrm{nom}}}{\Delta t}
+    \label{eq:istrom_erlaubt}
+\end{equation}
+Der Überschussstrom ergibt sich als Differenz zwischen erlaubtem und
+tatsächlich angefordertem (stärker negativem) Ladestrom:
+\begin{equation}
+    I_{\mathrm{ueberschuss}} = I_{\mathrm{erlaubt}} - I
+    \label{eq:iueberschuss}
+\end{equation}
+Da beim Laden $I < I_{\mathrm{erlaubt}} \le 0$ gilt, ist $I_{\mathrm{ueberschuss}}$
+stets positiv und muss nicht extra betragsmäßig genommen werden. Die dabei
+über den Bremswiderstand abgeführte Leistung ergibt sich als einfaches Produkt
+aus Überschussstrom und der Klemmenspannung, die sich bei genau diesem
+begrenzten Strom $I_{\mathrm{erlaubt}}$ einstellen würde:
+\begin{equation}
+    P_{\mathrm{Brems}} = U(I_{\mathrm{erlaubt}}) \cdot I_{\mathrm{ueberschuss}}
+    \label{eq:pbrems}
+\end{equation}
+umgesetzt in \texttt{bremswiderstand.py::dissipierte\_leistung\_W()}. Der Ladezustand
+selbst wird anschlie{\ss}end trotzdem hart auf $[0, 1]$ begrenzt, sodass $\mathrm{SoC}_{k+1}$
+nie über $100\,\%$ steigt, unabhängig vom rechnerischen (unbegrenzten) SoC-Update.
