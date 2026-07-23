@@ -33,6 +33,15 @@ python main.py
 
 ## Input and Output
 
+## Flask-Weboberfläche
+
+Die Weboberfläche verwendet denselben Simulationsdienst wie die Kommandozeile.
+Start: `python app.py`. Sie unterstützt CSV-Uploads (time, lat, lon, ele),
+request-lokale Geschwindigkeitsglättung, Karten, interaktive Zeitreihen sowie
+eine Ein-Faktor-Parameterstudie mit CSV-Export. Formularänderungen schreiben
+keine YAML-Dateien um. Web-Ergebnisse liegen unter `output/web/<id>/`; alte
+Ordner können gelöscht werden. Tests: `pytest`.
+
 ### Input
 
 The main input is the GPS track file at `data/final_project_input_data.csv`. The file is read as semicolon-separated CSV data and is expected to contain at least these columns:

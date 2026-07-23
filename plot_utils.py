@@ -8,6 +8,9 @@ from __future__ import annotations
 
 from pathlib import Path
 
+# Der Webserver hat gewöhnlich kein grafisches Desktop-Backend.
+import matplotlib
+matplotlib.use("Agg")
 import matplotlib.pyplot as plt
 import pandas as pd
 

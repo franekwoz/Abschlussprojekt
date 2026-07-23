@@ -7,3 +7,6 @@ shapely
 contextily
 matplotlib
 PyYAML
+Flask
+plotly
+pytest
