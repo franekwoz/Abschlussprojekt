@@ -1,11 +1,11 @@
 \chapter{Tests und Validierung}
 \label{ch:tests}
 
-Das Projekt enthielt im aktuellen Stand zwei Testdateien. Sie pruefen die Konfiguration und das Verhalten der Geschwindigkeitsglättung sowie die Integration mit \texttt{GPSTrack} und dem Simulator.
+Das Projekt enthält zwei Testdateien. Sie prüfen Konfiguration und Verhalten der Geschwindigkeitsglättung sowie die Integration mit \texttt{GPSTrack} und dem Simulator. Statt des realen, über 2000 Punkte langen Datensatzes bauen die Tests kleine, synthetische GPS-CSV-Dateien mit genau bekannten Zeit- und Distanzwerten. Damit lässt sich für jeden Testfall (Ausreisser, kurzes Intervall, grosse Zeitlücke, ...) gezielt und deterministisch prüfen, ob die Glättung genau das erwartete Verhalten zeigt -- mit echten, teils unregelmäßigen Fahrtdaten wäre das erwartete Ergebnis nicht eindeutig vorhersagbar.
 
-\section{Ausgefuehrter Testbefehl}
+\section{Ausgeführter Testbefehl}
 
-Die Tests wurden mit dem folgenden Befehl ausgefuehrt:
+Die Tests laufen mit:
 
 \begin{lstlisting}
 python -m unittest discover -s tests -v
@@ -13,7 +13,7 @@ python -m unittest discover -s tests -v
 
 \section{Ergebnis}
 
-Die Test-Suite umfasst 14 Einzeltests. Alle 14 Tests sind erfolgreich durchgelaufen. Damit sind die Konfigurationsladung, die Aktivierung und Deaktivierung der Glättung, konstante Geschwindigkeit, Ausreisser, kurze Intervalle, grosse Zeitluecken, unregelmaessige Zeitabstaende sowie die Kompatibilitaet mit dem Simulator abgedeckt.
+Die Test-Suite hat 14 Einzeltests, alle erfolgreich. Abgedeckt sind Konfigurationsladung, Aktivierung/Deaktivierung der Glättung, konstante Geschwindigkeit, Ausreisser, kurze Intervalle, grosse Zeitlücken, unregelmäßige Zeitabstände und die Kompatibilität mit dem Simulator.
 
 \begin{table}[htbp]
 \centering
@@ -21,20 +21,20 @@ Die Test-Suite umfasst 14 Einzeltests. Alle 14 Tests sind erfolgreich durchgelau
 \label{tab:testbereiche}
 \begin{tabularx}{\textwidth}{@{}lX@{}}
 \toprule
-Testbereich & Gepruefte Aussage \\
+Testbereich & Geprüfte Aussage \\
 \midrule
-Konfigurationsladen & YAML-Werte werden eingelesen, Defaults greifen und ungueltige Werte fuehren zu Fehlern. \\
-Aktivierte und deaktivierte Glättung & Die aktiven Spalten folgen entweder den Roh- oder den geglaetteten Werten. \\
+Konfigurationsladen & YAML-Werte werden eingelesen, Defaults greifen und ungültige Werte führen zu Fehlern. \\
+Aktivierte und deaktivierte Glättung & Die aktiven Spalten folgen entweder den Roh- oder den geglätteten Werten. \\
 Konstante Geschwindigkeit & Die Beschleunigung bleibt nahe null. \\
-Einzelner Ausreisser & Ein grosser Geschwindigkeitssprung wird als Filterstuetzstelle ausgeschlossen. \\
-Kurzes Intervall & Sehr kleine Zeitabstaende werden nicht als gueltige Stuetzstellen verwendet. \\
-Grosse Zeitluecke & Neue Segmente beginnen an den richtigen Stellen, ohne ueber die Luecke zu interpolieren. \\
-Unregelmaessige Intervalle & Der zeitabhaengige exponentielle Faktor reagiert auf unterschiedliche Zeitabstaende. \\
-Simulator-Kompatibilitaet & \texttt{EBikeSimulator} verarbeitet das Track-DataFrame mit den aktiven Spalten korrekt. \\
+Einzelner Ausreisser & Ein grosser Geschwindigkeitssprung wird als Filterstützstelle ausgeschlossen. \\
+Kurzes Intervall & Sehr kleine Zeitabstände werden nicht als gültige Stützstellen verwendet. \\
+Grosse Zeitlücke & Neue Segmente beginnen an den richtigen Stellen, ohne über die Lücke zu interpolieren. \\
+Unregelmäßige Intervalle & Der zeitabhängige exponentielle Faktor reagiert auf unterschiedliche Zeitabstände. \\
+Simulator-Kompatibilität & \texttt{EBikeSimulator} verarbeitet das Track-DataFrame mit den aktiven Spalten korrekt. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \section{Interpretation}
 
-Die Tests pruefen nicht die gesamte numerische Genauigkeit des Projekts, sondern die erwarteten Verhaltensweisen an den kritischen Schnittstellen. Insbesondere sichern sie ab, dass die Glättung keine pauschale Begrenzung einbaut und dass der Simulator die vom Track bereitgestellten aktiven Spalten ohne Zusatzannahmen weiterverarbeiten kann.
+Die Tests prüfen nicht die volle numerische Genauigkeit, sondern das erwartete Verhalten an den kritischen Stellen. Sie sichern vor allem ab, dass die Glättung keine pauschale Begrenzung einbaut und der Simulator die aktiven Spalten korrekt weiterverarbeitet.

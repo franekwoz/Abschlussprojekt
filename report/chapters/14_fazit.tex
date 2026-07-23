@@ -1,8 +1,8 @@
 \chapter{Fazit}
 \label{ch:fazit}
 
-Das Abschlussprojekt zeigt, wie sich eine reale GPS-Strecke zu einer reproduzierbaren E-Bike-Energiesimulation ausbauen laesst. Die Software trennt Datenverarbeitung, Fahrzeugphysik, Motorlogik, Akkuverhalten und Visualisierung klar voneinander und dokumentiert den kompletten Ablauf bis zu Karten, Plots und Logs. Die Berichtserstellung selbst wird mit \texttt{latexmk} automatisiert \cite{latexmk_docs}.
+Das Abschlussprojekt zeigt, wie sich eine echte GPS-Strecke zu einer reproduzierbaren E-Bike-Energiesimulation ausbauen lässt. Die Software trennt Datenverarbeitung, Fahrzeugphysik, Motorlogik, Akkuverhalten und Visualisierung klar voneinander -- bis hin zu Karten, Plots und Logs. Der Bericht selbst wird mit \texttt{latexmk} automatisiert erstellt \cite{latexmk_docs}.
 
-Besonders wichtig ist die Polymorphie der Akkumodelle: LiPo und NMC nutzen dieselbe Simulationspipeline, unterscheiden sich aber in Kennlinie und Innenwiderstand. Zusammen mit der optionalen Geschwindigkeitsglaettung laesst sich damit gut untersuchen, wie empfindlich die Leistung und der Strom auf GPS-Rauschen und kurze Zeitintervalle reagieren.
+Besonders wichtig ist die Polymorphie der Akkumodelle: LiPo und NMC nutzen dieselbe Pipeline, unterscheiden sich aber in Kennlinie und Innenwiderstand. Zusammen mit der optionalen Glättung zeigt sich so gut, wie empfindlich Leistung und Strom auf GPS-Rauschen reagieren.
 
-Fuer den aktuellen Datensatz faellt die Fahrt energetisch so anspruchsvoll aus, dass beide Akkutypen vor Streckenende auf 0\,\% SoC fallen. Genau diese reale Grenze macht den Bericht fachlich wertvoll: Die Simulation liefert nicht nur Visualisierungen, sondern auch eine klare Aussage ueber das Zusammenspiel von Strecke, Modell und Energiespeicher.
+Im aktuellen Datensatz ist die Fahrt so anspruchsvoll, dass beide Akkus vor Streckenende leer sind. Genau das macht den Bericht wertvoll: Die Simulation liefert nicht nur Bilder, sondern eine klare Aussage über das Zusammenspiel von Strecke, Modell und Energiespeicher.

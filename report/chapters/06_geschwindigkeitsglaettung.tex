@@ -1,49 +1,57 @@
-\chapter{Geschwindigkeitsglaettung}
+\chapter{Geschwindigkeitsglättung}
 \label{ch:glaettung}
 
-GPS-Daten liefern oft leicht schwankende Positionen, insbesondere bei kurzen Zeitintervallen. Da die Geschwindigkeit im Projekt aus Distanz durch Zeit berechnet wird, erzeugen kleine Zeitdifferenzen schnell hohe Spitzen. Diese Spitzen wirken direkt auf die Beschleunigung und damit auf die benoetigte Leistung. Das Projekt bietet deshalb eine zeitbasierte Glättung, die ueber die Konfiguration in \texttt{data/speed\_smoothing\_config.yaml} aktiviert oder deaktiviert wird.
+GPS-Positionen schwanken oft leicht, besonders bei kurzen Zeitintervallen. Da die Geschwindigkeit hier aus Distanz durch Zeit berechnet wird, erzeugen kleine Zeitdifferenzen schnell hohe Spitzen -- die wiederum auf Beschleunigung und Leistung durchschlagen. Das Projekt bietet daher eine zeitbasierte Glättung, die sich in \texttt{data/speed\_smoothing\_config.yaml} ein- oder ausschalten lässt.
 
 \section{Konfigurationsparameter}
 
-Die aktuelle Konfiguration enthaelt die folgenden Werte:
+Die aktuelle Konfiguration enthält diese Werte:
 \begin{table}[htbp]
 \centering
-\caption{Parameter der Geschwindigkeitsglaettung}
+\caption{Parameter der Geschwindigkeitsglättung (\texttt{data/speed\_smoothing\_config.yaml})}
 \label{tab:smoothing-config}
-\begin{tabular}{@{}ll@{}}
+\begin{tabularx}{\textwidth}{@{}llX@{}}
 \toprule
-Parameter & Bedeutung \\
+Parameter & Aktueller Wert & Bedeutung \\
 \midrule
-\texttt{enabled} & Schaltet die Glättung ein oder aus. \\
-\texttt{min\_interval\_s} & Untere Schranke fuer gueltige Filterstuetzstellen. \\
-\texttt{max\_gap\_s} & Zeitluecke, ab der ein neues Segment beginnt. \\
-\texttt{median\_window\_s} & Zeitfenster des zeitbasierten Medianfilters. \\
-\texttt{time\_constant\_s} & Zeitkonstante der exponentiellen Glättung. \\
-\texttt{max\_reasonable\_speed\_kmh} & Plausibilitaetsgrenze fuer Stützstellen. \\
+\texttt{enabled} & \texttt{true} & Schaltet die Glättung ein oder aus; bei \texttt{false} bleiben die Rohwerte aktiv. \\
+\texttt{min\_interval\_s} & 0.5\,s & Untere Schranke für gültige Filterstützstellen; kürzere Intervalle gelten als zu unsicher für eine Geschwindigkeitsberechnung und werden ausgeschlossen. \\
+\texttt{max\_gap\_s} & 30.0\,s & Zeitlücke, ab der ein neues Segment beginnt, damit über Aufzeichnungslücken hinweg nicht geglättet oder interpoliert wird. \\
+\texttt{median\_window\_s} & 15.0\,s & Zeitfenster des zeitbasierten Medianfilters; größer bedeutet stärkere Glättung, aber trägere Reaktion auf echte Geschwindigkeitsänderungen. \\
+\texttt{time\_constant\_s} & 3.0\,s & Zeitkonstante \(\tau\) der exponentiellen Glättung; steuert, wie schnell die geglättete Kurve der Rohkurve folgt. \\
+\texttt{max\_reasonable\_speed\_kmh} & 60.0\,km/h & Plausibilitätsgrenze für Stützstellen; darüber liegende Rohwerte gelten als Ausreißer und werden aus der Filterbasis entfernt. \\
 \bottomrule
-\end{tabular}
+\end{tabularx}
 \end{table}
 
 \section{Ablauf der Glättung}
 
-Der Algorithmus arbeitet segmentweise und fuehrt die folgenden Schritte aus:
+Der Algorithmus arbeitet segmentweise und führt die folgenden Schritte aus:
 \begin{enumerate}
   \item Rohgeschwindigkeit berechnen.
-  \item Ungueltige Intervalle erkennen, also \(\Delta t \le 0\).
+  \item Ungültige Intervalle erkennen, also \(\Delta t \le 0\).
   \item Sehr kurze Intervalle als ungeeignete Stützstellen markieren.
-  \item Grosse Zeitluecken in getrennte Segmente aufteilen.
+  \item Grosse Zeitlücken in getrennte Segmente aufteilen.
   \item Unplausible Geschwindigkeiten als Ausreisser markieren.
   \item Einen zeitbasierten Medianfilter anwenden.
   \item Fehlende Werte nur innerhalb des Segments interpolieren.
-  \item Eine zeitabhaengige exponentielle Glättung vorwaerts ausfuehren.
-  \item Die Glättung rueckwaerts wiederholen.
-  \item Beide Verlaeufe mitteln.
+  \item Eine zeitabhängige exponentielle Glättung vorwärts ausführen.
+  \item Die Glättung rückwärts wiederholen.
+  \item Beide Verläufe mitteln.
   \item Die Beschleunigung aus der aktiven Geschwindigkeitskurve berechnen.
 \end{enumerate}
 
+\paragraph{Warum Segmente statt einer durchgehenden Kurve?} Eine grosse Zeitlücke (länger als \texttt{max\_gap\_s}) bedeutet meist eine echte Aufzeichnungspause, z.\,B. ein Stopp ohne GPS-Fix. Würde der Filter darüber hinweg glätten oder interpolieren, würde er eine Bewegung erfinden, die nie stattgefunden hat. Deshalb beginnt an solchen Lücken ein neues Segment, und jedes Segment wird unabhängig gefiltert.
+
+\paragraph{Warum zuerst Median, dann Exponentialfilter?} Die beiden Filter lösen unterschiedliche Probleme. Der zeitbasierte Median entfernt einzelne, kurze Ausreisser robust, weil ein Median durch einen einzelnen extremen Wert kaum verschoben wird -- anders als ein Mittelwert. Erst danach glättet die exponentielle Filterung die verbleibende, kleinräumige Unruhe der Kurve. Würde man nur exponentiell glätten, würden einzelne GPS-Spitzen die Kurve noch mehrere Sekunden lang nachziehen.
+
+\paragraph{Warum vorwärts UND rückwärts filtern?} Eine einfache exponentielle Glättung reagiert erst NACH einer Geschwindigkeitsänderung -- sie hinkt der echten Kurve zeitlich hinterher (Phasenverzögerung). Filtert man dieselbe Formel zusätzlich auf der umgekehrten Zeitachse, "hinkt" dieser zweite Verlauf in die andere Richtung, er reagiert quasi zu früh. Der Mittelwert aus beiden Richtungen hebt diese Verzögerung weitgehend auf, sodass die geglättete Kurve zeitlich zur echten Bewegung passt statt ihr nur verzögert zu folgen.
+
+\paragraph{Was passiert, wenn ein Segment keine gültige Stützstelle hat?} Bleiben in einem kurzen Segment z.\,B. nur Ausreisser oder zu kurze Intervalle übrig, kann nicht sinnvoll gefiltert werden. In diesem Fall verwendet das Programm für dieses Segment die Rohgeschwindigkeit unverändert weiter und loggt eine Warnung, statt mit leeren oder erfundenen Werten weiterzurechnen.
+
 \section{Mathematische Beschreibung}
 
-Die zeitabhaengige Glättung verwendet den Faktor
+Die zeitabhängige Glättung verwendet den Faktor
 \begin{equation}
 \alpha_i = 1 - \exp\left(-\frac{\Delta t_i}{\tau}\right)
 \end{equation}
@@ -53,10 +61,10 @@ mit der Zeitkonstante \(\tau\). Daraus folgt die Rekursion
  = v_{\mathrm{glatt},i-1}
  + \alpha_i\left(v_i - v_{\mathrm{glatt},i-1}\right)
 \end{equation}
-Die Rueckwaertsfilterung verwendet dieselbe Formel auf der umgekehrten Zeitachse; das Ergebnis wird anschliessend mit dem Vorwaertsverlauf gemittelt.
+Die Rückwärtsfilterung nutzt dieselbe Formel auf der umgekehrten Zeitachse; anschliessend werden beide Verläufe gemittelt.
 
-Die Eingabekonfiguration wird aus YAML geladen \cite{pyyaml_docs}; die Glättungsparameter werden dabei auf Plausibilitaet geprueft, bevor sie in die Segmentierung und Filterung einfliessen.
+Die Konfiguration wird aus YAML geladen \cite{pyyaml_docs} und vor der Nutzung auf Plausibilität geprüft.
 
 \section{Aktive und passive Spalten}
 
-Das Projekt unterscheidet bewusst zwischen Roh-, geglätteter und aktiver Groesse. \texttt{geschwindigkeit\_roh\_ms} bleibt immer erhalten. \texttt{geschwindigkeit\_geglaettet\_ms} zeigt das Filterergebnis, waehrend \texttt{geschwindigkeit\_ms} die fuer die Simulation aktive Kurve enthaelt. Dasselbe gilt fuer \texttt{beschleunigung\_roh\_ms2}, \texttt{beschleunigung\_geglaettet\_ms2} und \texttt{beschleunigung\_ms2}. Es gibt keine pauschale Begrenzung oder das Abschneiden extremer Werte; stattdessen werden nur Filterstützstellen und Segmente intelligent behandelt.
+Das Projekt unterscheidet zwischen Roh-, geglätteter und aktiver Größe. \texttt{geschwindigkeit\_roh\_ms} bleibt immer erhalten, \texttt{geschwindigkeit\_geglaettet\_ms} zeigt das Filterergebnis, \texttt{geschwindigkeit\_ms} ist die für die Simulation aktive Kurve. Analog gilt das für \texttt{beschleunigung\_roh\_ms2}, \texttt{beschleunigung\_geglaettet\_ms2} und \texttt{beschleunigung\_ms2}. Es gibt keine pauschale Begrenzung oder Kappung -- nur Filterstützstellen und Segmente werden gezielt behandelt.

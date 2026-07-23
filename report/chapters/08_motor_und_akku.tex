@@ -3,33 +3,35 @@
 
 \section{Motor}
 
-Die Klasse \texttt{Motor} bildet eine einfache lineare Umrechnung vom Raddrehmoment auf den Strom ab. Verwendet wird die im Projekt explizit geforderte Motorkonstante:
+Die Klasse \texttt{Motor} rechnet linear vom Raddrehmoment auf den Strom um, mit der geforderten Motorkonstante:
 \begin{equation}
 I = \frac{M}{k_{\mathrm{m}}}
 \end{equation}
-Die Motorkonstante ist in \si{\newton\metre\per\ampere} angegeben. Der Motor ist als eigene Klasse modelliert, damit die Beziehung zwischen mechanischer Last und elektrischem Strom explizit und austauschbar bleibt.
+Sie ist in \si{\newton\metre\per\ampere} angegeben. Der Antrieb erfolgt laut Vorgabe über einen Radnabenmotor ohne Getriebe, bei dem das Drehmoment direkt proportional zum Motorstrom ist. Der Motor ist trotzdem als eigene Klasse modelliert, damit diese Beziehung austauschbar bleibt, falls später ein anderes Motormodell nötig wird.
 
 \section{Abstrakte Akku-Schnittstelle}
 
-\texttt{BatteryBase} definiert nur das Interface. Jede konkrete Akku-Klasse muss mindestens die Aktualisierung des Ladezustands und die Berechnung der Klemmenspannung bereitstellen. Diese Abstraktion ist entscheidend fuer den Polymorphismus im Simulator: Der Code arbeitet auf dem Basistyp, nicht auf einer konkreten Unterklasse.
+\texttt{BatteryBase} definiert nur das Interface: Jede Akku-Klasse muss Ladezustand und Klemmenspannung bereitstellen. Der Simulator arbeitet dadurch auf dem Basistyp, nicht auf einer konkreten Unterklasse.
 
-\section{Gemeinsame Akku-Funktionalitaet}
+\section{Gemeinsame Akku-Funktionalität}
 
-\texttt{BatteryPack} implementiert ein Ersatzschaltbild aus Leerlaufspannung und Innenwiderstand. Der Ladezustand wird ueber die Stromintegration aktualisiert:
+\texttt{BatteryPack} bildet ein Ersatzschaltbild aus Leerlaufspannung und Innenwiderstand. Der Ladezustand wird per Stromintegration aktualisiert:
 \begin{equation}
 \mathrm{SoC}_{k+1} = \mathrm{SoC}_k - \frac{I\,\Delta t}{C_{\mathrm{nom}}}
 \end{equation}
-Die Nennkapazitaet wird von \si{\ampere\hour} nach \si{\ampere\second} umgerechnet. Positiver Strom entlaedt den Akku, negativer Strom laedt ihn. Die Klemmenspannung ergibt sich als
+Positiver Strom entlädt den Akku, negativer lädt ihn. Die Klemmenspannung ergibt sich als
 \begin{equation}
 U = U_{\mathrm{OC}}(\mathrm{SoC}) - R_{\mathrm{int}} I
 \end{equation}
-und wird temperaturkorrigiert, wenn eine Temperatur gesetzt wurde.
+und wird temperaturkorrigiert, sobald eine Temperatur gesetzt ist.
 
-Temperatur beeinflusst zwei Groessen: Der Innenwiderstand steigt bei kaelteren Temperaturen relativ zur Referenz von \SI{25}{\celsius}, waehrend die nutzbare Kapazitaet sinkt. Beide Korrekturen sind nach unten begrenzt, damit bei extremen Temperaturen keine unrealistische Extrapolation entsteht.
+Kältere Temperaturen erhöhen den Innenwiderstand und senken die nutzbare Kapazität, jeweils relativ zu \SI{25}{\celsius}. Beide Korrekturen sind nach unten begrenzt, damit extreme Temperaturen nicht zu unrealistischen Werten führen.
+
+\paragraph{Warum Logging und eine Exception statt stiller Begrenzung?} Ein SoC über 100\,\% oder unter 0\,\% ist physikalisch nicht möglich. \texttt{apply\_current()} fängt beide Fälle deshalb aktiv ab: Würde der Ladezustand über 100\,\% steigen, wird der überschüssige Strom auf den Bremswiderstand umgeleitet (siehe unten) und eine Warnung geloggt. Wird versucht, einen bereits leeren Akku (SoC = 0) weiter zu entladen, wirft die Methode einen Fehler, statt einfach mit einem negativen oder unveränderten SoC weiterzurechnen. Der Simulator fängt diesen Fehler ab und beendet die Simulation an dieser Stelle sauber (siehe Aktivitätsdiagramm in Kapitel~\ref{ch:simulation}), statt ein physikalisch unmögliches Ergebnis auszugeben.
 
 \section{LiPo und NMC}
 
-LiPo- und NMC-Akkus erben beide von \texttt{BatteryPack} und unterscheiden sich nur in der Kennlinie und im Innenwiderstand. Das Projekt verwendet tabellarische Leerlaufspannungskennlinien mit linearer Interpolation \cite{numpy_docs}. Dadurch laesst sich das Verhalten beider Akkus unter identischem Lastprofil direkt vergleichen.
+LiPo- und NMC-Akkus erben von \texttt{BatteryPack} und unterscheiden sich nur in Kennlinie und Innenwiderstand. Beide werten die vorgegebenen, tabellarischen Datenblattwerte (SoC $\to$ \(U_{\mathrm{OC}}\)) mit linearer Interpolation aus \cite{numpy_docs}, wodurch sich ihr Verhalten unter identischer Last direkt vergleichen lässt.
 
 \begin{table}[htbp]
 \centering
@@ -42,13 +44,41 @@ Aspekt & LiPoBatteryPack & NMCBatteryPack \\
 Vererbung & Erbt von \texttt{BatteryPack} & Erbt von \texttt{BatteryPack} \\
 Serienschaltung & 10 Zellen & 10 Zellen \\
 Innenwiderstand & \SI{8}{\milli\ohm} pro Zelle, skaliert mit \texttt{n\_parallel} & \SI{7}{\milli\ohm} pro Zelle, skaliert mit \texttt{n\_parallel} \\
-OCV-Kennlinie & LiPo-Stuetzstellen aus Tabelle & NMC-Stuetzstellen aus Tabelle \\
+OCV-Kennlinie & LiPo-Stützstellen aus Tabelle & NMC-Stützstellen aus Tabelle \\
 Interpolation & \texttt{numpy.interp} & \texttt{numpy.interp} \\
-Verhalten unter Last & Hoehere Leerlaufspannung bei gleichem SoC & Niedrigere Leerlaufspannung bei gleichem SoC \\
+Verhalten unter Last & Höhere Leerlaufspannung bei gleichem SoC & Niedrigere Leerlaufspannung bei gleichem SoC \\
+\bottomrule
+\end{tabularx}
+\end{table}
+
+\section{Wichtige Attribute und Parameter}
+
+Die folgende Tabelle erklärt kurz die zentralen Attribute von Motor- und Akkumodell.
+
+\begin{table}[htbp]
+\centering
+\caption{Zentrale Attribute und Parameter von \texttt{Motor}, \texttt{BatteryPack} und \texttt{akkutemperatur.py}}
+\label{tab:motor-akku-attribute}
+\small
+\begin{tabularx}{\textwidth}{@{}p{4.1cm}p{2.4cm}X@{}}
+\toprule
+Attribut/Parameter & Wert (Beispiel) & Kommentar \\
+\midrule
+\texttt{Motor.km} & 1.5\,Nm/A & Motorkonstante; verknüpft Drehmoment und Strom über $I = M/k_{\mathrm{m}}$. \\
+\texttt{BatteryPack.C\_\allowbreak nom} & aus \texttt{capacity\_\allowbreak nom\_\allowbreak Ah} & Nennkapazität, intern von Ah in As (SI-Einheit) umgerechnet; Basis der SoC-Integration. \\
+\texttt{BatteryPack.R\_\allowbreak int} & 8\,m$\Omega$ (LiPo) / 7\,m$\Omega$ (NMC), pro Zelle & Innenwiderstand des Packs; bestimmt den Spannungsabfall $R_{\mathrm{int}} I$ unter Last. \\
+\texttt{BatteryPack.soc} & 0.0 -- 1.0 & Ladezustand (State of Charge); wird pro Zeitschritt über die Stromintegration aktualisiert und hart auf $[0,1]$ begrenzt. \\
+\texttt{BatteryPack.Vmin} / \texttt{Vmax} & 32.0\,V / 42.0\,V & Spannungsgrenzen bei SoC $=0$ bzw. SoC $=1$; definieren den Wertebereich der Leerlaufspannungskennlinie. \\
+\texttt{BatteryPack.n\_\allowbreak parallel} & konfigurierbar & Anzahl paralleler Zellstränge; erhöht die Gesamtkapazität und senkt den effektiven Innenwiderstand proportional. \\
+\texttt{letzte\_\allowbreak dissipierte\_\allowbreak leistung\_\allowbreak W} & 0.0\,W (Standard) & Zuletzt über den Bremswiderstand abgeführte Leistung, falls der Akku beim Laden über 100\,\% SoC gedrückt würde. \\
+\texttt{REFERENZ\_\allowbreak TEMPERATUR\_\allowbreak C} & \SI{25}{\celsius} & Referenztemperatur, auf die sich alle Temperaturkorrekturen beziehen. \\
+\texttt{WIDERSTAND\_\allowbreak TEMP\_\allowbreak KOEFFIZIENT\_\allowbreak PRO\_\allowbreak GRAD} & 0.02 (2\,\%/K) & Erhöhung des Innenwiderstands je Grad Celsius unterhalb der Referenztemperatur. \\
+\texttt{KAPAZITAET\_\allowbreak TEMP\_\allowbreak KOEFFIZIENT\_\allowbreak PRO\_\allowbreak GRAD} & 0.008 (0.8\,\%/K) & Verringerung der nutzbaren Kapazität je Grad Celsius unterhalb der Referenztemperatur. \\
+\texttt{MIN\_\allowbreak WIDERSTAND\_\allowbreak FAKTOR} / \texttt{MIN\_\allowbreak KAPAZITAET\_\allowbreak FAKTOR} & 0.5 & Untere Grenze der Korrekturfaktoren, damit bei extremer Kälte keine unrealistische Extrapolation entsteht. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \section{Bremswiderstand und Rekuperation}
 
-Wenn beim Bergabfahren oder Bremsen ein negativer Motorstrom entsteht, steigt der Ladezustand des Akkus. Ueberschreitet dieser Ladevorgang 100\,\%, wird der zulaessige Strom begrenzt. Der ueberschuessige Strom wird dann ueber den Bremswiderstand in Waerme umgesetzt und in \texttt{letzte\_dissipierte\_leistung\_W} gespeichert. Im aktuellen Datensatz tritt dieser Fall nicht auf; die gespeicherte dissipierte Leistung bleibt in beiden Simulationslaeufen bei null.
+Entsteht beim Bergabfahren oder Bremsen ein negativer Motorstrom, steigt der Ladezustand. Würde er über 100\,\% steigen, begrenzt das Programm den Strom und wandelt den Rest über den Bremswiderstand in Wärme um (gespeichert in \texttt{letzte\_dissipierte\_leistung\_W}). Im aktuellen Datensatz tritt dieser Fall nicht auf; der Wert bleibt in beiden Läufen bei null.

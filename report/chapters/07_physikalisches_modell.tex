@@ -1,15 +1,23 @@
 \chapter{Physikalisches E-Bike-Modell}
 \label{ch:physik}
 
-Das Fahrzeugmodell in \texttt{ebike.py} berechnet fuer jeden GPS-Punkt die benoetigte Kraft aus Fahrwiderstaenden, Beschleunigung und Steigung. Die Rechnung erfolgt in Fahrtrichtung und nutzt die aus dem GPS-Datensatz abgeleitete Geschwindigkeit und Beschleunigung.
+Das Fahrzeugmodell in \texttt{ebike.py} berechnet für jeden GPS-Punkt die nötige Kraft aus Fahrwiderständen, Beschleunigung und Steigung, wie in der Aufgabenstellung über das Freikörperdiagramm vorgegeben. Geschwindigkeit, Beschleunigung und Steigung liegen dafür bereits aus der GPS-Auswertung vor (Kapitel~\ref{ch:gps-kinematik}, \ref{ch:glaettung}).
 
-\section{Einzelkraefte}
+\section{Einzelkräfte}
 
-Der Luftwiderstand folgt im Projekt direkt der bekannten quadratischen Form und entspricht der in der Aerodynamik ueblichen Drag-Gleichung \cite{nasa_drag}:
+Der Luftwiderstand folgt der üblichen quadratischen Drag-Gleichung \cite{nasa_drag}:
 \begin{equation}
 F_{\mathrm{Luft}} = \frac{1}{2}\rho c_{\mathrm{w}}A v^2
 \end{equation}
-Dabei ist \(\rho\) die Luftdichte, \(c_{\mathrm{w}}A\) die aerodynamische Kennzahl und \(v\) die Geschwindigkeit. Fuer die Luftdichte verwendet das Projekt entweder die ueber \texttt{luftdichte.py} berechnete aktuelle Dichte oder eine konstante Standarddichte, falls Hoehe und Temperatur nicht nutzbar sind.
+Dabei ist \(\rho\) die Luftdichte, \(c_{\mathrm{w}}A\) die aerodynamische Kennzahl und \(v\) die Geschwindigkeit. Für \(\rho\) nutzt das Projekt entweder den aktuellen Wert aus \texttt{luftdichte.py} oder eine Standarddichte, falls Höhe und Temperatur fehlen. \texttt{luftdichte.py} kombiniert dafür zwei physikalische Zusammenhänge: die barometrische Höhenformel, die beschreibt, wie der Luftdruck mit der Höhe abnimmt,
+\begin{equation}
+p(h) = p_0 \exp\!\left(-\frac{g h}{R_{\mathrm{s}} T}\right),
+\end{equation}
+und das ideale Gasgesetz, das aus Druck und Temperatur die Dichte liefert,
+\begin{equation}
+\rho = \frac{p(h)}{R_{\mathrm{s}} T}.
+\end{equation}
+Dabei ist \(p_0\) der Luftdruck auf Meereshöhe, \(R_{\mathrm{s}}\) die spezifische Gaskonstante trockener Luft, \(T\) die Temperatur in Kelvin und \(h\) die Höhe. So sinkt die Luftwiderstandskraft realistisch bei größerer Höhe (dünnere Luft), statt mit einer festen Standarddichte zu rechnen.
 
 Die Hangabtriebskraft lautet
 \begin{equation}
@@ -25,19 +33,19 @@ Der Rollwiderstand wird im Code als
 \begin{equation}
 F_{\mathrm{Roll}} = c_{\mathrm{R}} m g \cos(\varphi)
 \end{equation}
-modelliert. Die verwendete Masse setzt sich aus Fahrer- und Fahrradmasse zusammen.
+modelliert. Die Masse ist die Summe aus Fahrer- und Fahrradmasse.
 
 \section{Gesamtkraft und Leistung}
 
-Die Funktion \texttt{EBike.antriebskraft\_N()} bildet die Summe
+\texttt{EBike.antriebskraft\_N()} bildet die Summe
 \begin{equation}
 F_{\mathrm{Antrieb}} = F_{\mathrm{Luft}} + F_{\mathrm{Hang}} + F_{\mathrm{Beschleunigung}} + F_{\mathrm{Roll}}
 \end{equation}
-und damit genau die im Quellcode verwendete Kraft. Aus Kraft und Geschwindigkeit folgt die mechanische Leistung
+-- genau die im Code verwendete Kraft. Daraus folgen mechanische Leistung
 \begin{equation}
 P = F v
 \end{equation}
-und das Raddrehmoment
+und Raddrehmoment
 \begin{equation}
 M = F r
 \end{equation}
@@ -45,4 +53,23 @@ mit dem Radradius \(r\).
 
 \section{Parameter}
 
-Die Parameter werden aus \texttt{data/bike\_config.yaml} geladen. Aktuell verwendet das Projekt eine Fahrer- und Radmasse von zusammen \SI{80}{\kilogram}, eine aerodynamische Kennzahl von \SI{0.5625}{\square\metre}, einen Raddurchmesser von \SI{27}{\centi\metre} und einen Rollwiderstandskoeffizienten von \num{0.005}. Diese Werte bestimmen gemeinsam mit der GPS-Kinematik die Leistungsanforderung entlang der Strecke.
+Die Parameter stammen aus \texttt{data/bike\_config.yaml}: Fahrer- und Radmasse zusammen \SI{80}{\kilogram}, aerodynamische Kennzahl \SI{0.5625}{\square\metre}, Raddurchmesser \SI{27}{\centi\metre}, Rollwiderstandskoeffizient \num{0.005}. Zusammen mit der GPS-Kinematik ergibt sich daraus die Leistungsanforderung entlang der Strecke.
+
+\begin{table}[htbp]
+\centering
+\caption{Parameter und Konstanten des Fahrzeugmodells (\texttt{EBike}, \texttt{data/bike\_config.yaml})}
+\label{tab:ebike-parameter}
+\begin{tabularx}{\textwidth}{@{}llX@{}}
+\toprule
+Parameter/Konstante & Wert & Kommentar \\
+\midrule
+\texttt{masse\_fahrer\_kg} & 70.0\,kg & Fahrergewicht; geht zusammen mit \texttt{masse\_rad\_kg} in \texttt{masse\_gesamt\_kg} ein, das in allen vier Kraftanteilen verwendet wird. \\
+\texttt{masse\_rad\_kg} & 10.0\,kg & Fahrzeuggewicht; wird zur Fahrermasse addiert, da im Modell nur die Gesamtmasse relevant ist. \\
+\texttt{cw\_a\_m2} & 0.5625\,m\textsuperscript{2} & Produkt aus Luftwiderstandsbeiwert $c_{\mathrm{w}}$ und Stirnfläche $A$; skaliert die Luftwiderstandskraft quadratisch mit der Geschwindigkeit. \\
+\texttt{raddurchmesser\_inch} & 27.0\,Zoll & Wird im Konstruktor in den Radradius \texttt{radradius\_m} umgerechnet (Zoll $\to$ Meter, Durchmesser $\to$ Radius) und bestimmt so das Drehmoment $M=Fr$. \\
+\texttt{rollwiderstandkoeffizient} & 0.005 & Koeffizient $c_{\mathrm{R}}$ des Rollwiderstands; skaliert linear mit der Normalkraft $mg\cos(\varphi)$. \\
+\texttt{RHO\_LUFT} (Klassenkonstante) & 1.225\,kg/m\textsuperscript{3} & Standard-Luftdichte auf Meereshöhe; wird verwendet, wenn keine höhen-/temperaturabhängige Dichte aus \texttt{luftdichte.py} verfügbar ist. \\
+\texttt{G} (Klassenkonstante) & 9.81\,m/s\textsuperscript{2} & Erdbeschleunigung; geht in Hangabtriebs- und Rollwiderstandskraft ein. \\
+\bottomrule
+\end{tabularx}
+\end{table}

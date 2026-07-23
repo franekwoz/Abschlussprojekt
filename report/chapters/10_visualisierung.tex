@@ -1,33 +1,37 @@
 \chapter{Visualisierung und Ausgaben}
 \label{ch:visualisierung}
 
-Das Projekt erzeugt zwei Arten von Ausgaben: interaktive HTML-Karten mit Folium und statische PNG-Diagramme mit Matplotlib. Beide Ausgabearten sind rein nachgelagert und greifen nur auf die bereits berechneten Daten zu.
+Das Projekt erzeugt zwei Ausgabearten: interaktive HTML-Karten mit Folium und statische PNG-Diagramme mit Matplotlib. Beide greifen nur auf bereits berechnete Daten zu.
 
-\section{HTML-Karten}
+\section{HTML-Karten: wie der Streckenplot funktioniert}
 
-Die Strecke wird als farbcodierte Linie in \texttt{output/karte\_strecke.html} gespeichert. Zusaetzlich erzeugt der Simulator zwei SoC-Karten fuer die beiden Akkutypen: \texttt{output/karte\_soc\_lipo.html} und \texttt{output/karte\_soc\_nmc.html}. Die Karten werden mit \texttt{folium} aufgebaut \cite{folium_docs} und koennen im Browser direkt geoeffnet werden. Als Kartenhintergrund wird standardmaessig ein kartenkompatibler Stil verwendet, damit lokale HTML-Dateien ohne Referer-Problem funktionieren.
+Die Karten entstehen in \texttt{GPSTrack.karte\_erstellen()} mit \texttt{folium} \cite{folium_docs}, das eine interaktive Leaflet-Karte im Browser erzeugt. Die Strecke wird dabei nicht als eine einzelne Linie gezeichnet, sondern in einzelne Segmente zwischen je zwei aufeinanderfolgenden GPS-Punkten zerlegt. Jedes Segment bekommt über eine lineare Farbskala (\texttt{branca.colormap}, blau-grün-gelb-rot) eine eigene Farbe, je nach Wert einer wählbaren Spalte -- standardmäßig die Geschwindigkeit, bei den SoC-Karten stattdessen der Ladezustand. So zeigt die Streckenfarbe direkt, wo z.\,B. schnell gefahren wurde oder wo der Akku bereits weit entladen war.
+
+Start- und Zielpunkt erhalten eigene Marker (grün/rot). Wurde zuvor \texttt{orte\_ermitteln()} aufgerufen, zeigen deren Popups die per Reverse Geocoding ermittelte Adresse statt nur \enquote{Start}/\enquote{Ziel}, und zusätzliche blaue Marker markieren die abgefragten Zwischenpunkte. Als Kartenhintergrund dient standardmäßig \texttt{cartodbpositron} statt des klassischen OpenStreetMap-Stils: Der offizielle OSM-Kachelserver verlangt einen Referer-Header, den Browser beim direkten Öffnen einer lokalen HTML-Datei nicht mitschicken -- die Kacheln würden sonst mit einem Zugriffsfehler abgelehnt.
+
+Die Strecke liegt so als farbcodierte Linie in \texttt{output/karte\_strecke.html}. Der Simulator erzeugt zusätzlich zwei SoC-Karten, \texttt{output/karte\_soc\_lipo.html} und \texttt{output/karte\_soc\_nmc.html}, indem dieselbe Funktion auf das jeweilige Ergebnis-DataFrame mit der Spalte \texttt{soc} angewendet wird. Alle Karten lassen sich direkt im Browser öffnen.
 
 \section{PNG-Diagramme}
 
-Die statischen Plots liegen unter \texttt{output/plot/}. Fuer den Bericht wurden ihre reproduzierbaren Kopien nach \texttt{report/figures/generated/} uebernommen und mit \texttt{matplotlib} erzeugt \cite{matplotlib_docs}.
+Die Plots liegen unter \texttt{output/plot/}, erzeugt mit \texttt{matplotlib} \cite{matplotlib_docs}. \texttt{plot\_utils.py} baut dafür die x-Achse aus der kumulierten Distanz (\texttt{distanz\_m.cumsum()}) bzw. aus der seit Fahrtbeginn vergangenen Zeit; die y-Werte kommen direkt aus den in Kapitel~\ref{ch:physik} und \ref{ch:motor-akku} berechneten Spalten. Für den Bericht wurden Kopien nach \texttt{report/figures/generated/} übernommen.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\textwidth]{hoehenprofil_fahrt.png}
-\caption{Hoehenprofil der betrachteten Route}
+\caption{Höhenprofil der betrachteten Route}
 \label{fig:hoehenprofil}
 \end{figure}
 
-Das Hoehenprofil in Abbildung~\ref{fig:hoehenprofil} zeigt die topografischen Wechsel der Strecke. Diese Hoehenaenderungen sind fuer die spaetere Leistungs- und Akkuabschätzung zentral, weil Steigung und Gefaelle direkt in die Hangabtriebskraft eingehen.
+Abbildung~\ref{fig:hoehenprofil} zeigt das Höhenprofil der Strecke. Es ist wichtig für die Leistungs- und Akkuabschätzung, da Steigung und Gefälle direkt in die Hangabtriebskraft eingehen.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\textwidth]{zeitverlauf_lipo.png}
-\caption{Zeitverlauf der Simulationsgroessen fuer den LiPo-Lauf}
+\caption{Zeitverlauf der Simulationsgrößen für den LiPo-Lauf}
 \label{fig:zeitverlauf-lipo}
 \end{figure}
 
-Abbildung~\ref{fig:zeitverlauf-lipo} kombiniert Geschwindigkeit, Leistung, Ladezustand, Strom und Spannung. Man erkennt, dass die Leistungsspitzen und der Stromverlauf direkt von der aktiven Geschwindigkeitskurve abhängen. Die Zeitverlaeufe fuer NMC sind im Projekt analog erzeugt; die Diagrammdatei liegt ebenfalls im Verzeichnis der generierten Abbildungen.
+Abbildung~\ref{fig:zeitverlauf-lipo} zeigt vier übereinander liegende Diagramme mit gemeinsamer Zeitachse: Geschwindigkeit (mit Rohkurve im Hintergrund, falls Glättung aktiv ist), Leistung, Ladezustand sowie Strom und Spannung auf einer geteilten y-Achse. Leistungsspitzen und Stromverlauf folgen dabei direkt der aktiven Geschwindigkeitskurve. Für NMC entsteht die gleiche Grafik analog.
 
 \begin{figure}[htbp]
 \centering
@@ -36,17 +40,17 @@ Abbildung~\ref{fig:zeitverlauf-lipo} kombiniert Geschwindigkeit, Leistung, Ladez
 \label{fig:soc-vergleich}
 \end{figure}
 
-Der SoC-Vergleich in Abbildung~\ref{fig:soc-vergleich} zeigt beide Akkus im selben Fahrprofil. Weil die Simulation im aktuellen Datensatz wegen leerem Akku endet, laufen beide Kurven bis auf 0\,\% herunter und erreichen dort ihre Untergrenze.
+Abbildung~\ref{fig:soc-vergleich} vergleicht beide Akkus im gleichen Fahrprofil. Da der Akku im Datensatz leer wird, laufen beide Kurven bis auf 0\,\% herunter.
 
 \begin{figure}[htbp]
 \centering
 \includegraphics[width=0.9\textwidth]{geschwindigkeit_roh_geglaettet.png}
-\caption{Vergleich von Roh- und geglaetteter Geschwindigkeit}
+\caption{Vergleich von Roh- und geglätteter Geschwindigkeit}
 \label{fig:speed-comparison}
 \end{figure}
 
-Die Diagnosegrafik in Abbildung~\ref{fig:speed-comparison} zeigt den Filtereffekt direkt. Die geglättete Kurve entfernt schnelle, dateninduzierte Zacken, ohne die Strecke selbst oder die maximale Rueckfuehrung auf null zu beschneiden.
+Abbildung~\ref{fig:speed-comparison} zeigt den Filtereffekt: Die geglättete Kurve entfernt schnelle Zacken, ohne die Strecke selbst zu verändern.
 
 \section{Logdatei und Verzeichnisse}
 
-Die Logdatei \texttt{output/ebike\_simulation.log} spiegelt die Konsolenausgaben mit Zeitstempeln. Das Programm erzeugt alle benoetigten Verzeichnisse beim Start automatisch. Der Bericht selbst verwendet davon getrennte, versionierte Kopien der wichtigsten PNGs.
+Die Logdatei \texttt{output/ebike\_simulation.log} spiegelt die Konsolenausgaben mit Zeitstempeln. Alle Verzeichnisse legt das Programm beim Start automatisch an.

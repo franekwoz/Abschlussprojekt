@@ -1,0 +1,28 @@
+\chapter{Reverse Geocoding, Wetterdaten und Web-Anwendung}
+\label{ch:erweiterungen-detail}
+
+Dieses Kapitel erklärt vier Erweiterungen, die im Code umgesetzt, aber bisher nicht im Detail beschrieben sind: die Umwandlung von GPS-Koordinaten in Adressen, die Abfrage echter Wetterdaten, eine statische GIS-Kartenvariante und die Web-Anwendung mit Parameterstudien.
+
+\section{Reverse Geocoding: von Koordinaten zu Adressen}
+
+\texttt{GPSTrack.orte\_ermitteln()} wandelt einzelne GPS-Punkte in lesbare Adressen um. Dafür nutzt die Methode den Dienst Nominatim von OpenStreetMap über die Python-Bibliothek \texttt{geopy}. Da Nominatim maximal eine Anfrage pro Sekunde erlaubt und keine Massenabfragen, wird nicht jeder der teils über 2000 GPS-Punkte abgefragt. Stattdessen wählt die Methode Start, Ziel und eine konfigurierbare Anzahl gleichmäßig verteilter Zwischenpunkte (Standard: 8) aus und fragt nur diese ab. Ein \texttt{RateLimiter} erzwingt dabei die Mindestpause zwischen zwei Anfragen.
+
+Für jeden gewählten Punkt liefert \texttt{geolocator.reverse((lat, lon))} entweder eine Adresse oder \texttt{None}, falls die Koordinate keiner Adresse zugeordnet werden kann (z.\,B. mitten im Wald). Schlägt eine Anfrage durch einen Netzwerkfehler fehl, wird das abgefangen und geloggt, statt das Programm abstürzen zu lassen. Das Ergebnis -- Index, Koordinaten und Adresse je Punkt -- wird nur im Arbeitsspeicher als \texttt{self.orte} gehalten und nicht auf die Festplatte geschrieben. \texttt{karte\_erstellen()} liest \texttt{self.orte} automatisch aus und zeigt die Adressen in den Marker-Popups an (siehe Kapitel~\ref{ch:visualisierung}).
+
+\section{Wetterdaten: woher die Werte kommen}
+
+\texttt{wetterdaten.py} fragt reale Wetterdaten über die kostenlose Open-Meteo-API ab (\url{https://open-meteo.com/}, kein API-Key nötig). Um die Anzahl der Anfragen klein zu halten, werden nicht alle GPS-Punkte abgefragt, sondern genau dieselben Punkte, die zuvor per Reverse Geocoding bestimmt wurden -- Koordinaten und Adresse liegen dafür ohnehin schon vor.
+
+Alle gewählten Orte werden in einer einzigen HTTP-Anfrage abgefragt, indem ihre Koordinaten kommagetrennt übergeben werden. Je nachdem, wie weit der Aufzeichnungszeitpunkt in der Vergangenheit liegt, wählt das Programm automatisch die passende Open-Meteo-Schnittstelle: die Archiv-API für länger zurückliegende Zeitpunkte (mehr als 5 Tage) oder die Forecast-API für aktuelle bzw. nahe Zeitpunkte. Die Antwort enthält für jeden Ort einen stündlichen Verlauf; das Programm wählt daraus den Stundenwert, der dem tatsächlichen Aufzeichnungszeitpunkt am nächsten liegt. Abgefragt werden standardmäßig Temperatur, Windgeschwindigkeit und Niederschlag. Schlägt die Abfrage fehl (z.\,B. ohne Internetverbindung), füllt das Programm die entsprechenden Spalten mit \texttt{NaN} und loggt eine Warnung, statt abzubrechen.
+
+\section{Statische GIS-Karten mit GeoPandas}
+
+Neben der interaktiven \texttt{folium}-Karte (Kapitel~\ref{ch:visualisierung}) bietet \texttt{GPSTrack} mit \texttt{karte\_erstellen\_geopandas()} eine zweite, inhaltlich ähnliche Kartendarstellung als statisches PNG. Der Aufbau folgt derselben Logik wie bei \texttt{karte\_erstellen()}: Die Strecke wird in einzelne Liniensegmente zwischen je zwei aufeinanderfolgenden GPS-Punkten zerlegt, jedes Segment bekommt den Messwert des zugehörigen Punktes zugeordnet, und alle Segmente werden als \texttt{geopandas.GeoDataFrame} nach einer Farbskala eingefärbt geplottet. Der Unterschied liegt im Format: Statt einer interaktiven Leaflet-Karte entsteht ein Vektordatensatz (Koordinatensystem EPSG:4326, für die Darstellung nach Web-Mercator umprojiziert), der sich z.\,B. als GeoJSON oder Shapefile exportieren und in echter GIS-Software wie QGIS weiterverwenden lässt. Ein optionaler OpenStreetMap-Hintergrund über \texttt{contextily} wird nur geladen, wenn Internetzugriff verfügbar ist; schlägt das fehl, entsteht die Karte automatisch ohne Hintergrund statt mit einem Fehlerabbruch.
+
+Für Fälle, in denen nur der reine Streckenverlauf interessiert -- ohne Einfärbung nach einem Messwert --, gibt es zusätzlich \texttt{karte\_erstellen\_geopandas\_einfach()}: Sie behandelt die gesamte Strecke als ein einziges LineString-Objekt statt vieler Einzelsegmente, was schneller ist und eine kleinere Ausgabedatei erzeugt.
+
+\section{Web-Anwendung und automatische Parameterstudien}
+
+Neben dem Kommandozeilenaufruf über \texttt{main.py} bietet das Projekt eine kleine Flask-Web-Anwendung (\texttt{app.py}, \texttt{webapp/}), die dieselbe Simulationslogik über eine Browseroberfläche zugänglich macht. Auf der Startseite lassen sich Fahrzeug-, Glättungs- und Akkuparameter über ein Formular einstellen und optional eine eigene GPS-CSV-Datei hochladen; die Route \texttt{/simulate} führt die Simulation aus und zeigt Kennzahlen, Plots und Karten auf einer Ergebnisseite an.
+
+Die Route \texttt{/parameterstudie} automatisiert Ein-Faktor-Parameterstudien: Ein einzelner Fahrzeugparameter (z.\,B. Masse, cW$\cdot A$ oder Raddurchmesser) wird über einen gewählten Wertebereich in mehreren Schritten variiert, und die Simulation läuft für jeden Wert erneut. \texttt{run\_parameter\_study()} in \texttt{webapp/services/parameter\_study\_service.py} sammelt die Kennzahlen jedes Laufs (Reichweite, Endladezustand, Maximalleistung, ...) in einer Tabelle, die sich in der Web-Oberfläche ansehen oder als CSV herunterladen lässt. So lässt sich z.\,B. direkt vergleichen, wie stark sich eine höhere Fahrermasse auf den Ladezustand am Streckenende auswirkt, ohne die YAML-Konfiguration manuell mehrfach zu ändern.

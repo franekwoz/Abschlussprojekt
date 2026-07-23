@@ -1,0 +1,36 @@
+\chapter{Funktionsweise des Programms im Überblick}
+\label{ch:funktionsweise}
+
+Dieses Kapitel zeigt kurz, wie das Programm als Ganzes funktioniert. Die folgenden Kapitel gehen dann ins Detail.
+
+\section{Grundidee}
+
+Das Programm beantwortet eine Frage: \emph{Wie viel Energie kostet eine echte Fahrt ein E-Bike, und wie unterscheiden sich dabei zwei Akkutypen?} Dazu geht es die GPS-Aufzeichnung Punkt für Punkt durch und berechnet daraus Kraft, Leistung, Drehmoment und Motorstrom. Dieser Strom wirkt dann auf ein Akkumodell, das Ladezustand und Spannung entsprechend fortschreibt.
+
+Die Bewegung (Geschwindigkeit, Beschleunigung, Steigung) liegt bereits als GPS-Messung vor. Aus dieser bekannten Bewegung berechnet das Programm über das Freikörperdiagramm die dafür nötige Kraft und daraus den Strom.
+
+\section{Ablauf in neun Schritten}
+
+\begin{enumerate}
+  \item \textbf{CSV einlesen} (\texttt{gps\_track.py}): Die Datei \texttt{data/final\_project\_input\_data.csv} wird eingelesen. Jede Zeile enthält Zeit, Position, Höhe und Temperatur.
+  \item \textbf{Kinematik berechnen}: Aus je zwei Punkten entstehen Zeitdifferenz, Distanz (Haversine-Formel), Rohgeschwindigkeit, Steigung, Kurswinkel und Kompassrichtung.
+  \item \textbf{Geschwindigkeit optional glätten} (\texttt{speed\_smoothing.py}): Kurze Zeitabstände lassen die Rohgeschwindigkeit stark schwanken. Ist die Glättung aktiviert, dämpft ein Medianfilter mit anschließender Exponentialglättung diese Spitzen. Die Beschleunigung wird danach aus der aktiven Geschwindigkeitskurve berechnet.
+  \item \textbf{Luftdichte schätzen} (\texttt{luftdichte.py}): Aus Höhe und Temperatur ergibt sich die aktuelle Luftdichte, statt pauschal mit einem Standardwert zu rechnen.
+  \item \textbf{Kraft, Leistung und Drehmoment berechnen} (\texttt{ebike.py}): Für jeden Punkt addiert \texttt{EBike.punkt\_auswerten()} Luftwiderstand, Hangabtrieb, Beschleunigungskraft und Rollwiderstand. Daraus folgen Leistung und Drehmoment.
+  \item \textbf{Motorstrom bestimmen} (\texttt{motor.py}): Das Drehmoment wird über die Motorkonstante linear in einen Strom umgerechnet.
+  \item \textbf{Akku fortschreiben} (\texttt{battery\_pack.py}, \texttt{lipo\_battery.py}, \texttt{nmc\_battery.py}, \texttt{akkutemperatur.py}): Der Strom wirkt über die Zeitspanne auf den Ladezustand. Die Temperatur korrigiert dabei Innenwiderstand und Kapazität, die Spannung ergibt sich aus der Leerlaufspannungskennlinie. Würde der Akku über 100\,\% geladen (z.\,B. bei starkem Bergabfahren), begrenzt \texttt{bremswiderstand.py} den Strom und wandelt den Rest in Wärme um.
+  \item \textbf{Simulation wiederholen} (\texttt{ebike\_simulator.py}, \texttt{main.py}): Dieselbe Strecke läuft einmal mit LiPo- und einmal mit NMC-Akku, da beide von derselben Basisklasse erben.
+  \item \textbf{Ausgeben} (\texttt{plot\_utils.py}, \texttt{gps\_track.py}): Am Ende stehen Kennzahlen, HTML-Karten und PNG-Diagramme zur Verfügung.
+\end{enumerate}
+
+\section{Zusammenspiel der Bausteine}
+
+\texttt{main.py} ist der Einstiegspunkt: Es lädt Konfiguration und GPS-Daten und erzeugt die Objekte \texttt{GPSTrack}, \texttt{EBike}, \texttt{Motor} und zwei Akkus. \texttt{GPSTrack} liefert nur Bewegungsdaten, \texttt{EBike} nur die Fahrzeugphysik, \texttt{Motor} nur die Umrechnung von Drehmoment in Strom, die Akkuklassen nur ihr elektrisches Verhalten. \texttt{EBikeSimulator} verbindet diese vier Objekte, enthält aber selbst keine Physik -- er steuert nur den Ablauf und sammelt die Ergebnisse. Diese klare Trennung ist die Grundlage der Architektur aus Kapitel~\ref{ch:softwarearchitektur}.
+
+\section{Die zwei Konfigurationsdateien}
+
+Zwei YAML-Dateien steuern das Verhalten, ohne dass Code geändert werden muss: \texttt{data/bike\_config.yaml} legt die Fahrzeugparameter fest (Tabelle~\ref{tab:ebike-parameter}), \texttt{data/speed\_smoothing\_config.yaml} die Glättung (Tabelle~\ref{tab:smoothing-config}). Beide werden beim Start einmal geladen.
+
+\section{Ergebnis in einem Satz}
+
+Aus einer GPS-Aufzeichnung entsteht so ein nachvollziehbarer Weg von Position und Höhe über Kraft und Leistung bis zum Ladezustand zweier Akkus -- die Zahlen dazu stehen in Kapitel~\ref{ch:ergebnisse}.

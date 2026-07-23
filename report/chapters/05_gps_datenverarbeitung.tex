@@ -1,11 +1,11 @@
 \chapter{GPS- und Kinematikberechnung}
 \label{ch:gps-kinematik}
 
-Die GPS-Eingabe liegt als semikolonseparierte CSV vor und enthaelt die Spalten \texttt{time}, \texttt{lat}, \texttt{lon}, \texttt{ele} und \texttt{temperature}. Die Zeitstempel werden mit \texttt{pandas.to\_datetime} eingelesen und in UTC interpretiert \cite{pandas_docs}. Das Projekt setzt voraus, dass die Zeilen bereits in zeitlicher Reihenfolge vorliegen; die Berechnung selbst arbeitet dann nur mit aufeinanderfolgenden Punkten.
+Die GPS-Eingabe ist eine semikolonseparierte CSV mit den Spalten \texttt{time}, \texttt{lat}, \texttt{lon}, \texttt{ele} und \texttt{temperature}. Die Zeitstempel liest \texttt{pandas.to\_datetime} als UTC ein \cite{pandas_docs}. Die Zeilen müssen bereits zeitlich sortiert sein, die Berechnung nutzt dann nur aufeinanderfolgende Punkte.
 
 \section{Zeit und Distanz}
 
-Fuer zwei aufeinanderfolgende Punkte $i-1$ und $i$ gilt im Code:
+Für zwei aufeinanderfolgende Punkte $i-1$ und $i$ gilt im Code:
 \begin{equation}
 \Delta t_i = t_i - t_{i-1}
 \end{equation}
@@ -16,18 +16,18 @@ mit
 \begin{equation}
  a = \sin^2\!\left(\frac{\Delta \varphi}{2}\right) + \cos(\varphi_{i-1})\cos(\varphi_i)\sin^2\!\left(\frac{\Delta \lambda}{2}\right)
 \end{equation}
-und $R = \SI{6371000}{\metre}$ als mittlerem Erdradius. Diese Haversine-Formel wird direkt in \texttt{GPSTrack\_distanz\_haversine()} umgesetzt.
+und $R = \SI{6371000}{\metre}$ als mittlerem Erdradius. Diese Haversine-Formel ist für die Distanzberechnung vorgegeben und wird direkt in \texttt{GPSTrack\_distanz\_haversine()} umgesetzt.
 
 Aus Distanz und Zeit folgt die Rohgeschwindigkeit:
 \begin{equation}
  v_i = \frac{\Delta s_i}{\Delta t_i}
 \end{equation}
 
-Wenn \(\Delta t_i \le 0\) ist, wird die Rohgeschwindigkeit im Projekt auf \SI{0}{\metre\per\second} gesetzt und das Intervall spaeter als ungueltig markiert. Die Berechnung vermeidet damit Divisionen durch null und erhaelt trotzdem die restlichen Datenpunkte.
+Ist \(\Delta t_i \le 0\), setzt das Projekt die Rohgeschwindigkeit auf \SI{0}{\metre\per\second} und markiert das Intervall als ungültig. So vermeidet die Berechnung eine Division durch null, ohne Datenpunkte zu verlieren.
 
 \section{Steigung, Kurs und Kompassrichtung}
 
-Die Hoehendifferenz wird als
+Die Höhendifferenz wird als
 \begin{equation}
 \Delta h_i = h_i - h_{i-1}
 \end{equation}
@@ -35,13 +35,15 @@ verwendet. Daraus entsteht die Steigung in Grad als
 \begin{equation}
 \varphi_i = \arctan\!\left(\frac{\Delta h_i}{\Delta s_i}\right)
 \end{equation}
-falls $\Delta s_i > 0$ ist, sonst $0$. Der Kurswinkel wird aus Breiten- und Laengengrad ueber die im Code implementierte Anfangskurs-Formel bestimmt und anschliessend auf den Bereich $[0,360)$ normalisiert. Die Kompassrichtung wird daraus auf die acht Hauptrichtungen \texttt{N}, \texttt{NO}, \texttt{O}, \texttt{SO}, \texttt{S}, \texttt{SW}, \texttt{W} und \texttt{NW} abgebildet.
+falls $\Delta s_i > 0$ ist, sonst $0$. Der Kurswinkel folgt aus Breiten- und Längengrad über die Anfangskurs-Formel und wird auf $[0,360)$ normalisiert. Daraus ergibt sich die Kompassrichtung: \texttt{N}, \texttt{NO}, \texttt{O}, \texttt{SO}, \texttt{S}, \texttt{SW}, \texttt{W} oder \texttt{NW}.
 
 \section{Beschleunigung}
 
-Die Beschleunigung wird nicht aus einer verrauschten Punkt-fuer-Punkt-Differenz gebildet, sondern segmentweise aus der aktiven Geschwindigkeitskurve. Die Funktion \texttt{beschleunigung\_aus\_geschwindigkeit()} verwendet eine robuste Randbehandlung und zentrale Differenzen innerhalb eines Segments. Dadurch werden harte Spruenge ueber grosse Zeitluecken vermieden.
+Die Beschleunigung entsteht nicht aus einer einfachen Differenz zweier aufeinanderfolgender Geschwindigkeitswerte, sondern segmentweise aus der aktiven Geschwindigkeitskurve. Der Grund: Bei ungleichmäßigen Zeitabständen -- wie sie bei GPS-Aufzeichnungen üblich sind -- würde eine reine Vorwärtsdifferenz das Ergebnis unnötig empfindlich gegenüber genau dem Punkt machen, an dem sie ausgewertet wird. \texttt{beschleunigung\_aus\_geschwindigkeit()} verwendet deshalb eine zentrale Differenz: Für einen Punkt $i$ wird die Geschwindigkeitsänderung zwischen dem Vorgänger- und dem Nachfolgerpunkt durch die Zeit zwischen den beiden Intervallmitten geteilt. Das mittelt den Einfluss beider Nachbarn und reagiert dadurch weniger empfindlich auf einen einzelnen verrauschten Messwert als eine reine Vorwärts- oder Rückwärtsdifferenz.
+
+An den Segmentgrenzen gibt es keinen Vorgänger bzw. Nachfolger im selben Segment; dort setzt die Funktion die Beschleunigung am ersten Punkt auf null und verwendet am letzten Punkt eine einseitige (rückwärtige) Differenz. Segmente werden dabei nicht überschritten: Eine Beschleunigung wird nie über eine grosse Zeitlücke hinweg berechnet, weil das einen physikalisch bedeutungslosen Wert ergeben würde (z.\,B. eine sehr kleine Beschleunigung über eine mehrminütige Aufzeichnungspause).
 
 \section{Wichtige DataFrame-Spalten}
 
-Die berechneten Spalten bilden die Grundlage fuer die weiteren Kapitel. Besonders relevant sind:
-\texttt{dt\_s}, \texttt{distanz\_m}, \texttt{steigung\_grad}, \texttt{kurs\_grad}, \texttt{kompassrichtung}, \texttt{geschwindigkeit\_roh\_ms}, \texttt{geschwindigkeit\_geglaettet\_ms}, \texttt{geschwindigkeit\_ms}, \texttt{beschleunigung\_roh\_ms2}, \texttt{beschleunigung\_geglaettet\_ms2}, \texttt{beschleunigung\_ms2} sowie die Filterspalten fuer die Glättung. Der Simulator arbeitet spaeter ausschliesslich mit \texttt{geschwindigkeit\_ms} und \texttt{beschleunigung\_ms2}.
+Diese Spalten bilden die Grundlage für die weiteren Kapitel:
+\texttt{dt\_s}, \texttt{distanz\_m}, \texttt{steigung\_grad}, \texttt{kurs\_grad}, \texttt{kompassrichtung}, \texttt{geschwindigkeit\_roh\_ms}, \texttt{geschwindigkeit\_geglaettet\_ms}, \texttt{geschwindigkeit\_ms}, \texttt{beschleunigung\_roh\_ms2}, \texttt{beschleunigung\_geglaettet\_ms2}, \texttt{beschleunigung\_ms2} sowie die Filterspalten der Glättung. Der Simulator nutzt später nur \texttt{geschwindigkeit\_ms} und \texttt{beschleunigung\_ms2}.

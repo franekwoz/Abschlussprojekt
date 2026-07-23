@@ -19,7 +19,7 @@
 \graphicspath{{figures/generated/}{figures/architecture/}}
 
 \newcommand{\ReportSummary}{%
-Das Abschlussprojekt implementiert eine datengetriebene E-Bike-Simulation auf Basis realer GPS-Streckendaten. Aus einer semikolonseparierten CSV-Datei werden Zeit, Position, Hoehe und Temperatur eingelesen und in Strecke, Geschwindigkeit, Beschleunigung, Steigung und Kurs umgerechnet. Darauf aufbauend berechnet das Programm die fuer die Fahrt benoetigte Antriebskraft, Leistung, das Raddrehmoment und den Motorstrom. Eine zeitbasierte Glättung der Geschwindigkeit kann optional aktiviert werden, um GPS-Rauschen und starke Beschleunigungsspitzen zu reduzieren. Die Simulation fuehrt ein LiPo- und ein NMC-Akkupack mit derselben Fahrstrecke durch und speichert den Verlauf von Leistung, Drehmoment, Strom, Spannung und Ladezustand. Fuer den vorliegenden Datensatz ergibt sich eine Strecke von 94.27\,km, eine Fahrzeit von 4.55\,h und ein End-SoC von 0\,\% fuer beide Akkutypen, weil der Akku im Verlauf der Fahrt leer wird.
+Das Abschlussprojekt implementiert eine E-Bike-Simulation auf Basis realer GPS-Streckendaten. Aus einer CSV-Datei werden Zeit, Position, Höhe und Temperatur eingelesen und in Strecke, Geschwindigkeit, Beschleunigung, Steigung und Kurs umgerechnet. Daraus berechnet das Programm die nötige Antriebskraft, Leistung, das Raddrehmoment und den Motorstrom. Eine optionale Geschwindigkeitsglättung reduziert GPS-Rauschen und Beschleunigungsspitzen. Die Simulation führt ein LiPo- und ein NMC-Akkupack durch dieselbe Strecke und speichert Leistung, Drehmoment, Strom, Spannung und Ladezustand. Für den vorliegenden Datensatz ergeben sich 94.27\,km Strecke, 4.55\,h Fahrzeit und ein End-SoC von 0\,\% für beide Akkus, da der Akku während der Fahrt leer wird.
 }
 
 \begin{document}
@@ -33,6 +33,7 @@ Das Abschlussprojekt implementiert eine datengetriebene E-Bike-Simulation auf Ba
 \clearpage
 
 \include{chapters/01_einleitung}
+\include{chapters/01a_funktionsweise}
 \include{chapters/02_anforderungen}
 \include{chapters/03_projektstruktur}
 \include{chapters/04_softwarearchitektur}
@@ -42,9 +43,9 @@ Das Abschlussprojekt implementiert eine datengetriebene E-Bike-Simulation auf Ba
 \include{chapters/08_motor_und_akku}
 \include{chapters/09_simulationsablauf}
 \include{chapters/10_visualisierung}
+\include{chapters/10a_erweiterungen_im_detail}
 \include{chapters/11_tests_und_validierung}
 \include{chapters/12_ergebnisse}
-\include{chapters/13_grenzen_und_ausblick}
 \include{chapters/14_fazit}
 
 \printbibliography

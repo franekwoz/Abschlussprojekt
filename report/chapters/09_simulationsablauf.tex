@@ -1,6 +1,77 @@
 \chapter{Simulationsablauf}
 \label{ch:simulation}
 
+\section{Aktivitätsdiagramm der Simulation}
+
+Abbildung~\ref{fig:aktivitaetsdiagramm} zeigt den vollständigen Ablauf einer Simulation für einen Akkutyp, von den Eingabedaten bis zu den Ausgaben. \texttt{BatteryPack.apply\_current()} prüft dabei zuerst, ob der Akku leer ist und eine Entladung versucht wird (Abbruch), und erst danach, ob die Ladung 100\,\% überschreiten würde (Bremswiderstandslogik) -- genau in dieser Reihenfolge bildet das Diagramm es ab.
+
+\begin{figure}[htbp]
+\centering
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  node distance=7mm and 16mm,
+  every node/.style={font=\scriptsize},
+  act/.style={draw, rounded corners, align=center, minimum width=42mm, minimum height=7mm, fill=black!3},
+  dec/.style={draw, diamond, align=center, inner sep=1pt, aspect=2.2, fill=black!3},
+  arr/.style={-Latex, thick},
+]
+  \node[circle, fill=black, minimum size=2.5mm, inner sep=0] (start) {};
+  \node[act, below=of start] (a1) {GPS-Daten und Konfiguration laden};
+  \node[act, below=of a1] (a2) {Kinematik berechnen: Distanz, $v$, $a$, Steigung};
+  \node[dec, below=of a2] (d1) {Glättung\\aktiviert?};
+  \node[act, right=28mm of d1] (a3) {Geschwindigkeit glätten,\\Beschleunigung neu berechnen};
+  \node[dec, below=9mm of d1] (m1) {};
+  \node[act, below=of m1] (a4) {E-Bike, Motor, Akku erzeugen};
+  \node[act, below=of a4] (loop) {Nächsten GPS-Punkt wählen};
+  \node[act, below=of loop] (a5) {Luftdichte bestimmen; Kraft, Leistung,\\Drehmoment und Motorstrom berechnen};
+  \node[dec, below=of a5] (d2) {Akku leer und\\Entladung nötig?};
+  \node[act, right=55mm of d2] (a8) {Simulation abbrechen};
+  \node[dec, below=9mm of d2] (m2) {};
+  \node[act, below=of m2] (a6) {Ladezustand aktualisieren\\(Stromintegration)};
+  \node[dec, below=of a6] (d3) {SoC würde\\$>100\%$ steigen?};
+  \node[act, right=28mm of d3] (a7) {Strom begrenzen, Überschuss\\über Bremswiderstand dissipieren};
+  \node[dec, below=9mm of d3] (m3) {};
+  \node[act, below=of m3] (av) {Spannung berechnen};
+  \node[dec, below=of av] (d4) {Weitere\\Punkte?};
+  \node[act, below=of d4] (a9) {Kennzahlen, Plots, Karten, Log erzeugen};
+  \node[circle, draw, below=of a9, minimum size=3.2mm, inner sep=0] (endc) {};
+  \node[circle, fill=black, minimum size=1.8mm, inner sep=0] at (endc) {};
+
+  \draw[arr] (start) -- (a1);
+  \draw[arr] (a1) -- (a2);
+  \draw[arr] (a2) -- (d1);
+  \draw[arr] (d1) -- node[left]{nein} (m1);
+  \draw[arr] (d1) -- node[above]{ja} (a3);
+  \draw[arr] (a3) |- (m1.east);
+  \draw[arr] (m1) -- (a4);
+  \draw[arr] (a4) -- (loop);
+  \draw[arr] (loop) -- (a5);
+  \draw[arr] (a5) -- (d2);
+  \draw[arr] (d2) -- node[left]{nein} (m2);
+  \draw[arr] (d2) -- node[above]{ja} (a8);
+  \draw[arr] (m2) -- (a6);
+  \draw[arr] (a6) -- (d3);
+  \draw[arr] (d3) -- node[left]{nein} (m3);
+  \draw[arr] (d3) -- node[above]{ja} (a7);
+  \draw[arr] (a7) |- (m3.east);
+  \draw[arr] (m3) -- (av);
+  \draw[arr] (av) -- (d4);
+  \draw[arr] (d4) -- node[above]{ja} ++(-42mm,0) |- (loop.west);
+  \draw[arr] (d4) -- node[left]{nein} (a9);
+  \draw[arr] (a8) |- ($(a9.east)+(0,3mm)$) -- (a9.east);
+  \draw[arr] (a9) -- (endc);
+\end{tikzpicture}%
+}
+\caption{Aktivitätsdiagramm des Simulationsablaufs für einen Akkutyp}
+\label{fig:aktivitaetsdiagramm}
+\end{figure}
+
+\section{Warum bricht die Simulation bei leerem Akku ab, statt weiterzurechnen?}
+
+\texttt{EBikeSimulator.simulate()} verarbeitet die Strecke Punkt für Punkt und hält dabei den zuletzt gültigen Index fest. Wirft der Akku beim Entladeversuch einen Fehler (siehe Kapitel~\ref{ch:motor-akku}), stoppt die Schleife an genau dieser Stelle: Das zurückgegebene Ergebnis-DataFrame enthält dann nur die Punkte bis zum Abbruch, nicht die gesamte Strecke. Diese Entscheidung spiegelt die Realität wider -- ein leerer Akku kann keine weitere Fahrt antreiben --, und sie ist der Grund, warum in Kapitel~\ref{ch:ergebnisse} beide Akkus vor dem Streckenende auf 0\,\% SoC fallen: Die Simulation bricht dort ab, wo der Akku tatsächlich leer wäre, statt unrealistisch mit negativem Ladezustand weiterzulaufen.
+
+Die Luftdichte wird pro Punkt einzeln bestimmt und nicht einmalig für die ganze Strecke: Höhe und Temperatur ändern sich während der Fahrt, und schlägt die Berechnung für einen einzelnen Punkt fehl (z.\,B. wegen fehlender Werte), fängt der Simulator das ab und verwendet für diesen einen Punkt die Standarddichte, statt die gesamte Simulation abzubrechen.
+
 \section{Datenfluss}
 
 \begin{figure}[htbp]
@@ -17,7 +88,7 @@
   \node[box, below=of frames] (out) {Kennzahlen, PNGs, HTML-Karten, Logdatei};
 
   \draw[arr] (csv) -- (track);
-  \draw[arr] (bikecfg) |- (sim.west);
+  \draw[arr] (bikecfg) |- (phys.west);
   \draw[arr] (smoothcfg) |- (track.east);
   \draw[arr] (track) -- (kin);
   \draw[arr] (kin) -- (sim);
@@ -31,10 +102,10 @@
 
 \section{Ablauf in \texttt{main.py}}
 
-Der Programmstart erzeugt zunaechst die Ausgabeverzeichnisse und initialisiert das Logging. Danach werden die Glättungskonfiguration und der GPS-Track geladen. Anschliessend gibt das Programm die wichtigsten Streckenkennzahlen aus und schreibt eine interaktive Karte mit der Streckenfarbe nach Geschwindigkeit.
+Der Programmstart legt die Ausgabeverzeichnisse an und startet das Logging. Danach lädt das Programm Glättungskonfiguration und GPS-Track, gibt die Streckenkennzahlen aus und schreibt eine Karte mit der Streckenfarbe nach Geschwindigkeit.
 
-Im naechsten Schritt werden E-Bike, Motor und zwei Akkupacks instanziiert. Dann laeuft der Simulator zweimal: einmal fuer LiPo und einmal fuer NMC. Beide Laeufe verwenden dieselbe Track-Datenbasis. Nach jedem Lauf wird eine SoC-Karte erzeugt und das Ergebnis-DataFrame gespeichert. Zum Schluss erstellt \texttt{plot\_utils.py} die statischen Diagramme.
+Als Nächstes entstehen E-Bike, Motor und zwei Akkupacks. Der Simulator läuft dann zweimal -- einmal für LiPo, einmal für NMC -- auf derselben Strecke. Nach jedem Lauf speichert das Programm eine SoC-Karte und das Ergebnis-DataFrame. Zum Schluss erstellt \texttt{plot\_utils.py} die Diagramme.
 
-\section{Uebergebene Daten}
+\section{Übergebene Daten}
 
-Zwischen den Komponenten werden ausschliesslich DataFrames, einfache Zahlen und konkrete Klassenobjekte uebergeben. \texttt{GPSTrack} liefert die physikalisch aufbereiteten Spalten, \texttt{EBikeSimulator} erweitert diese um Leistungs- und Akkuwerte. Dadurch bleibt die Schnittstelle nachvollziehbar und leicht testbar.
+Zwischen den Komponenten wandern nur DataFrames, einfache Zahlen und Klassenobjekte. \texttt{GPSTrack} liefert die aufbereiteten Spalten, \texttt{EBikeSimulator} ergänzt Leistungs- und Akkuwerte. So bleibt die Schnittstelle einfach und testbar.

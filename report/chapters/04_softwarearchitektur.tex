@@ -1,45 +1,64 @@
 \chapter{Softwarearchitektur und OOP}
 \label{ch:softwarearchitektur}
 
-Die Architektur des Projekts folgt einer klaren Trennung zwischen Datenquelle, physikalischem Modell, Energieversorgung und Visualisierung. Die Klassen kooperieren ueber Assoziationen und Vererbung, aber die fachliche Verantwortung bleibt in getrennten Modulen gebuendelt.
+Die Architektur trennt Datenquelle, physikalisches Modell, Energieversorgung und Visualisierung klar voneinander. Die Klassen arbeiten über Assoziationen und Vererbung zusammen, jede bleibt aber für ihren eigenen Bereich zuständig.
 
 \section{Objektorientierte Struktur}
 
-\texttt{BatteryBase} definiert die abstrakte Schnittstelle fuer alle Akku-Modelle. \texttt{BatteryPack} liefert die gemeinsame Implementierung mit SoC-Integration und Temperaturkorrektur. \texttt{LiPoBatteryPack} und \texttt{NMCBatteryPack} spezialisieren nur die Leerlaufspannungskennlinie sowie die physikalischen Packparameter. Dadurch kann \texttt{EBikeSimulator} den Akku polymorph verwenden, ohne den konkreten Typ kennen zu muessen.
+\texttt{BatteryBase} definiert die abstrakte Schnittstelle für alle Akku-Modelle. \texttt{BatteryPack} liefert die gemeinsame Umsetzung mit SoC-Integration und Temperaturkorrektur. \texttt{LiPoBatteryPack} und \texttt{NMCBatteryPack} ändern nur die Leerlaufspannungskennlinie und die Packparameter. So kann \texttt{EBikeSimulator} jeden Akkutyp gleich behandeln, ohne ihn genau zu kennen.
 
-\texttt{GPSTrack} ist die Datenquelle fuer die Simulation. \texttt{EBike} modelliert die Fahrphysik, \texttt{Motor} die Umrechnung von Drehmoment in Strom. Der Simulator verbindet diese Objekte und fuehrt die Strecke zeitdiskret aus. So entstehen klare Zustaendigkeiten: Datenaufbereitung in \texttt{GPSTrack}, Physik in \texttt{EBike}, elektrische Umrechnung im \texttt{Motor}, Energiespeicherung im Akku und Ablaufsteuerung im Simulator.
+\texttt{GPSTrack} liefert die Daten, \texttt{EBike} die Fahrphysik, \texttt{Motor} die Umrechnung von Drehmoment in Strom. Der Simulator verbindet diese Objekte und führt die Strecke Schritt für Schritt aus.
 
 \section{Klassendiagramm}
 
 \begin{figure}[htbp]
 \centering
-\begin{tikzpicture}[node distance=14mm and 18mm, every node/.style={font=\small}, box/.style={draw, rounded corners, align=center, minimum width=28mm, minimum height=9mm}, arr/.style={-Latex, thick}]
-  \node[box] (batterybase) {BatteryBase};
-  \node[box, below=of batterybase] (batteryPack) {BatteryPack};
-  \node[box, below left=of batteryPack] (lipo) {LiPoBatteryPack};
-  \node[box, below right=of batteryPack] (nmc) {NMCBatteryPack};
+\resizebox{\textwidth}{!}{%
+\begin{tikzpicture}[
+  every node/.style={font=\small},
+  box/.style={draw, rounded corners, align=center, minimum width=34mm, minimum height=9mm, fill=black!3},
+  arr/.style={-Latex, thick},
+]
+  \node[box] (cli) at (0,0) {main.py \\ (CLI)};
+  \node[box] (web) at (60mm,0) {webapp/routes.py \\ (Web)};
+  \node[box] (svc) at (30mm,-18mm) {run\_simulation() \\ Service-Layer};
+  \node[box] (sim) at (30mm,-36mm) {EBikeSimulator};
 
-  \node[box, right=40mm of batterybase] (sim) {EBikeSimulator};
-  \node[box, above right=of sim] (track) {GPSTrack};
-  \node[box, right=of sim] (bike) {EBike};
-  \node[box, below right=of sim] (motor) {Motor};
-  \node[box, below=of sim] (battery) {BatteryBase};
+  \node[box] (track) at (-50mm,-54mm) {GPSTrack};
+  \node[box] (bike) at (2mm,-54mm) {EBike};
+  \node[box] (motor) at (60mm,-54mm) {Motor};
+  \node[box] (battery) at (108mm,-54mm) {BatteryBase};
+  \node[box] (smoothcfg) at (-50mm,-72mm) {SpeedSmoothingConfig};
 
-  \draw[arr] (batterybase) -- (batteryPack);
-  \draw[arr] (batteryPack) -- (lipo);
-  \draw[arr] (batteryPack) -- (nmc);
+  \node[box] (batteryPack) at (108mm,-72mm) {BatteryPack};
+  \node[box] (lipo) at (82mm,-90mm) {LiPoBatteryPack};
+  \node[box] (nmc) at (134mm,-90mm) {NMCBatteryPack};
+
+  \draw[arr] (cli) -- (svc);
+  \draw[arr] (web) -- (svc);
+  \draw[arr] (svc) -- (sim);
 
   \draw[arr] (sim) -- (track);
   \draw[arr] (sim) -- (bike);
   \draw[arr] (sim) -- (motor);
   \draw[arr] (sim) -- (battery);
-\end{tikzpicture}
-\caption{UML-ahnliche Sicht auf die wesentlichen Klassen und Beziehungen}
+  \draw[arr] (track) -- (smoothcfg);
+
+  \draw[arr] (battery) -- (batteryPack);
+  \draw[arr] (batteryPack) -- (lipo);
+  \draw[arr] (batteryPack) -- (nmc);
+\end{tikzpicture}%
+}
+\caption{UML-ahnliche Sicht auf die wesentlichen Klassen, den gemeinsamen Service-Layer und ihre Beziehungen}
 \label{fig:klassendiagramm}
 \end{figure}
 
-Das Diagramm zeigt die im Code sichtbare Struktur: Vererbung nach unten bei den Batterien und Assoziationen vom Simulator zu den vier zentralen Objekten. Die Richtung der Pfeile ist absichtlich einfach gehalten, weil der Schwerpunkt auf der inhaltlichen Architektur liegt, nicht auf einer vollstaendigen UML-Notation.
+Das Diagramm zeigt die Struktur aus dem Code: Beide Einstiegspunkte (\texttt{main.py} und \texttt{webapp/routes.py}) rufen denselben Service-Layer \texttt{run\_simulation()} auf, der \texttt{EBikeSimulator} mit \texttt{GPSTrack}, \texttt{EBike}, \texttt{Motor} und dem gewählten Akku verbindet. \texttt{GPSTrack} nutzt zusätzlich \texttt{SpeedSmoothingConfig} für die optionale Glättung. Bei den Batterien zeigt sich die Vererbung nach unten. Die Pfeile sind bewusst einfach gehalten, da der Fokus auf der Architektur liegt, nicht auf vollständiger UML-Notation.
 
 \section{Daten- und Kontrolltrennung}
 
-Die Datenverarbeitung ist von der Simulation entkoppelt. Das Programm liest die CSV und bereitet sie in \texttt{GPSTrack} auf, erzeugt danach ein Objekt des E-Bikes und des Motors und fuehrt dann die Simulation fuer jeden Akkutyp separat aus. Diagramme und Karten sind rein nachgelagerte Ausgaben; sie beeinflussen das Simulationsmodell nicht.
+Datenverarbeitung und Simulation sind entkoppelt. Das Programm liest die CSV, bereitet sie in \texttt{GPSTrack} auf, erzeugt E-Bike und Motor und simuliert dann jeden Akkutyp separat. Diagramme und Karten sind reine Ausgaben und beeinflussen das Modell nicht.
+
+\section{Ein gemeinsamer Service-Layer für CLI und Web-App}
+
+Sowohl \texttt{main.py} als auch die Web-Anwendung (Kapitel~\ref{ch:erweiterungen-detail}) führen dieselbe Simulation aus, sollen sich aber nicht in zwei parallelen Implementierungen unterscheiden. Deshalb liegt die eigentliche Ablauflogik -- Track laden, E-Bike/Motor/Akkus erzeugen, den Simulator für jeden gewählten Akkutyp laufen lassen, Kennzahlen zusammenfassen und optional Plots/Karten/CSV-Dateien schreiben -- gebündelt in einer einzigen Funktion, \texttt{run\_simulation()} in \texttt{webapp/services/simulation\_service.py}. \texttt{main.py} ruft diese Funktion für den Kommandozeilenlauf auf, \texttt{webapp/routes.py} ruft dieselbe Funktion für einen Browser-Request auf. Änderungen an der Simulationslogik müssen so nur an einer Stelle gepflegt werden, und CLI und Web-App können nicht auseinanderlaufen. Die Web-Routen selbst (\texttt{routes.py}) enthalten dagegen keine Simulationslogik, sondern nur Formularverarbeitung, Datei-Uploads und das Rendern von Ergebnisseiten -- eine weitere Ausprägung derselben Trennung von Ablaufsteuerung und Fachlogik wie beim Simulator selbst.
