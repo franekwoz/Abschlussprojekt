@@ -13,6 +13,7 @@ from lipo_battery import LiPoBatteryPack
 from nmc_battery import NMCBatteryPack
 from ebike_simulator import EBikeSimulator
 from plot_utils import plots_erstellen
+from wetterdaten import wetterdaten_fuer_orte
 
 
 @dataclass
@@ -24,6 +25,7 @@ class SimulationResult:
     summaries: dict[str, dict]
     smoothing: SpeedSmoothingConfig
     map_paths: dict[str, Path]
+    orte: pd.DataFrame | None = None
 
 
 def _summary(df: pd.DataFrame, initial_soc: float) -> dict:
@@ -41,8 +43,18 @@ def _summary(df: pd.DataFrame, initial_soc: float) -> dict:
 
 def run_simulation(track_path: str | Path, bike_config: dict, smoothing_config: SpeedSmoothingConfig,
                    battery_options: dict | None = None, output_directory: str | Path | None = None,
-                   generate_outputs: bool = True) -> SimulationResult:
-    """Run a fully isolated simulation; every battery object is newly created."""
+                   generate_outputs: bool = True, mit_orten_und_wetter: bool = False,
+                   anzahl_wegpunkte: int = 6) -> SimulationResult:
+    """Run a fully isolated simulation; every battery object is newly created.
+
+    mit_orten_und_wetter (bool): Fragt zusaetzlich per Reverse Geocoding
+        (Nominatim) Adressen sowie passende Wetterdaten (Open-Meteo) fuer
+        Start, Ziel und ein paar Zwischenpunkte entlang der Strecke ab.
+        Benoetigt Internetzugriff und macht den Lauf durch das Rate-Limit
+        von Nominatim (>= 1 Anfrage/Sekunde) spuerbar langsamer, daher per
+        Default deaktiviert. Schlaegt die Abfrage fehl, bleibt orte einfach
+        None - die eigentliche Simulation laeuft davon unbeeinflusst weiter.
+    """
     options = {"lipo": True, "nmc": True, "capacity_ah": 10.0, "initial_soc": 1.0, "n_parallel": 1}
     options.update(battery_options or {})
     run_id = uuid.uuid4().hex
@@ -51,6 +63,17 @@ def run_simulation(track_path: str | Path, bike_config: dict, smoothing_config: 
     out.mkdir(parents=True, exist_ok=True)
     track = GPSTrack(track_path, smoothing_config=smoothing_config)
     if len(track.df) < 2: raise ValueError("Der GPS-Track braucht mindestens zwei Punkte.")
+
+    orte = None
+    if mit_orten_und_wetter:
+        try:
+            orte = track.orte_ermitteln(anzahl_wegpunkte=anzahl_wegpunkte)
+            orte = wetterdaten_fuer_orte(orte, track.df)
+        except Exception:
+            # Kein Internetzugriff, Nominatim/Open-Meteo nicht erreichbar, ...
+            # Die Simulation selbst soll davon nicht abhaengen.
+            orte = None
+
     bike, motor = EBike(**bike_config), Motor()
     classes = {"LiPo": LiPoBatteryPack, "NMC": NMCBatteryPack}
     selected = {"LiPo": options["lipo"], "NMC": options["nmc"]}
@@ -75,4 +98,6 @@ def run_simulation(track_path: str | Path, bike_config: dict, smoothing_config: 
         for name, df in simulations.items():
             df.to_csv(out / f"simulation_{name.lower()}.csv", index=False)
         (out / "metadata.json").write_text(json.dumps({"summaries": summaries, "smoothing": smoothing_config.__dict__}), encoding="utf-8")
-    return SimulationResult(run_id, out, track, simulations, summaries, smoothing_config, maps)
+        if orte is not None:
+            orte.to_csv(out / "orte.csv", index=False)
+    return SimulationResult(run_id, out, track, simulations, summaries, smoothing_config, maps, orte)

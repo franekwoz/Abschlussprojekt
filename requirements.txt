@@ -10,3 +10,5 @@ PyYAML
 Flask
 plotly
 pytest
+requests
+geopy

@@ -20,6 +20,15 @@ zu verändern. Die Methode nimmt optional ein beliebiges DataFrame entgegen
 (Standard: die eigenen Trackdaten `self.df`), damit sich damit auch das
 Ergebnis-DataFrame aus EBikeSimulator.simulate() (inkl. SoC, Spannung,
 Motorstrom, ...) einfärben und plotten lässt.
+
+Erweiterung: orte_ermitteln()
+-------------------------------
+Zusätzlich kann GPSTrack GPS-Koordinaten entlang der Strecke per Reverse
+Geocoding (Nominatim/OpenStreetMap, siehe geopy) in lesbare Adressen
+umwandeln. Das Ergebnis wird als `self.orte` zwischengespeichert und von
+karte_erstellen() automatisch für Marker-Popups verwendet, falls vorhanden.
+Auf Basis von `self.orte` können z.B. mit wetterdaten.py auch Wetterdaten
+für dieselben Streckenpunkte abgefragt werden.
 """
 
 import math
@@ -258,6 +267,95 @@ class GPSTrack:
         return f"GPSTrack({len(self.df)} Punkte, {self.gesamtstrecke_km():.2f} km)"
 
     # ------------------------------------------------------------------
+    # Reverse Geocoding (GPS-Koordinaten -> Adresse/Ort)
+    # ------------------------------------------------------------------
+    def orte_ermitteln(
+        self,
+        anzahl_wegpunkte: int = 8,
+        user_agent: str = "abschlussprojekt_ebike_simulation",
+    ) -> pd.DataFrame:
+        """
+        Wandelt GPS-Koordinaten entlang der Strecke in lesbare Adressen um
+        (Reverse Geocoding via Nominatim/OpenStreetMap, kostenlos).
+
+        Aus Rücksicht auf die Nominatim-Nutzungsbedingungen (max. 1 Anfrage/
+        Sekunde, keine Massenabfragen) wird NICHT jeder einzelne GPS-Punkt
+        abgefragt - bei einem langen Track wären das ggf. tausende Anfragen.
+        Stattdessen werden Start, Ziel und `anzahl_wegpunkte` gleichmäßig
+        verteilte Zwischenpunkte entlang der Strecke abgefragt.
+
+        Parameter:
+            anzahl_wegpunkte (int): Anzahl zusätzlicher Zwischenpunkte
+                (zusätzlich zu Start/Ziel), gleichmäßig über die Strecke verteilt.
+            user_agent (str): Eindeutiger App-Name für die Nominatim-Anfrage
+                (von OSM gefordert, sonst wird die Anfrage abgelehnt).
+
+        Rückgabe:
+            pd.DataFrame mit Spalten: index (Position im Track), lat, lon,
+            adresse (voller Adressstring, oder None bei Fehlschlag). Wird
+            zusätzlich als self.orte gespeichert und von karte_erstellen()
+            automatisch für die Marker-Popups verwendet. Es findet KEINE
+            Speicherung auf der Festplatte statt - das Ergebnis lebt nur,
+            solange das Programm läuft.
+        """
+        # Import erst hier (nicht ganz oben in der Datei), damit geopy nur
+        # gebraucht wird, wenn diese Methode auch wirklich aufgerufen wird
+        from geopy.geocoders import Nominatim
+        from geopy.extra.rate_limiter import RateLimiter
+
+        n = len(self.df)
+        if n == 0:
+            self.orte = pd.DataFrame(columns=["index", "lat", "lon", "adresse"])
+            return self.orte
+
+        # Indizes bestimmen: Start (0), gleichmäßig verteilte Zwischenpunkte
+        # und Ziel (n-1). Wir teilen die Strecke in (anzahl_wegpunkte + 1)
+        # gleich große Abschnitte und nehmen jeweils den Punkt am Anfang
+        # jedes Abschnitts.
+        abstand = max(n // (anzahl_wegpunkte + 1), 1)
+
+        indizes = sorted(set(min(i * abstand, n - 1) for i in range(anzahl_wegpunkte + 1)) | {n - 1})
+
+        # Nominatim-Client aufbauen: geolocator.reverse() ist die Funktion,
+        # die aus (lat, lon) eine Adresse macht.
+        # timeout=10: bricht eine einzelne Anfrage nach 10 Sekunden mit
+        # einem Fehler ab, statt bei einer langsamen/gestörten Verbindung
+        # unbegrenzt zu hängen. Der Fehler wird unten im try/except
+        # abgefangen wie jeder andere Netzwerkfehler auch.
+        geolocator = Nominatim(user_agent=user_agent, timeout=10)
+        # RateLimiter erzwingt die von Nominatim geforderte Pause zwischen
+        # Anfragen (>= 1 Sekunde)
+        reverse = RateLimiter(geolocator.reverse, min_delay_seconds=1)
+
+        ergebnisse = []
+        for idx in indizes:
+            # Koordinaten an diesem Index auslesen; float(...) wandelt den
+            # numpy-Zahlentyp von pandas in eine normale Python-Zahl um
+            lat = float(self.df["lat"].iloc[idx])
+            lon = float(self.df["lon"].iloc[idx])
+
+            try:
+                # Eigentliche Netzwerk-Anfrage an Nominatim
+                location = reverse((lat, lon), language="de")
+                # location kann None sein, wenn für diese Koordinate keine
+                # Adresse gefunden wurde (z.B. mitten im Wald/auf dem Meer)
+                adresse = location.address if location else None
+                logger.info(f"Adresse abgefragt (Index {idx}): {adresse}")
+            except Exception as fehler:
+                # Netzwerkfehler o.ä. abfangen, damit das Programm nicht
+                # abstürzt - stattdessen wird die Adresse einfach None
+                logger.warning(f"Reverse Geocoding fehlgeschlagen (Index {idx}): {fehler}")
+                adresse = None
+
+            ergebnisse.append({"index": idx, "lat": lat, "lon": lon, "adresse": adresse})
+
+        # Ergebnis nur im Arbeitsspeicher ablegen (self.orte) - keine
+        # CSV-Datei. karte_erstellen() liest direkt von hier.
+        self.orte = pd.DataFrame(ergebnisse)
+
+        return self.orte
+
+    # ------------------------------------------------------------------
     # Kartendarstellung (folium)
     # ------------------------------------------------------------------
     def karte_erstellen(
@@ -336,12 +434,35 @@ class GPSTrack:
                 tooltip=f"{farbwert}: {werte.iloc[i]:.2f}",
             ).add_to(karte)
 
+        # Popups mit Adresse anreichern, falls orte_ermitteln() zuvor
+        # aufgerufen wurde (self.orte). Sonst Fallback auf generischen Text.
+        start_popup, ziel_popup = "Start", "Ziel"
+        orte = getattr(self, "orte", None)
+        if orte is not None and len(orte) > 0:
+            start_adresse = orte.iloc[0]["adresse"]
+            ziel_adresse = orte.iloc[-1]["adresse"]
+            if start_adresse:
+                start_popup = f"Start: {start_adresse}"
+            if ziel_adresse:
+                ziel_popup = f"Ziel: {ziel_adresse}"
+
         folium.Marker(
-            koordinaten[0], popup="Start", icon=folium.Icon(color="green", icon="play")
+            koordinaten[0], popup=start_popup, icon=folium.Icon(color="green", icon="play")
         ).add_to(karte)
         folium.Marker(
-            koordinaten[-1], popup="Ziel", icon=folium.Icon(color="red", icon="stop")
+            koordinaten[-1], popup=ziel_popup, icon=folium.Icon(color="red", icon="stop")
         ).add_to(karte)
+
+        # Zusätzliche Zwischen-Marker mit Adresse für die per orte_ermitteln()
+        # abgefragten Wegpunkte (ohne Start/Ziel, die bereits oben gesetzt sind)
+        if orte is not None and len(orte) > 2:
+            for _, zeile in orte.iloc[1:-1].iterrows():
+                if zeile["adresse"]:
+                    folium.Marker(
+                        [zeile["lat"], zeile["lon"]],
+                        popup=zeile["adresse"],
+                        icon=folium.Icon(color="blue", icon="info-sign"),
+                    ).add_to(karte)
 
         farbskala.add_to(karte)
         karte.save(ausgabepfad)
