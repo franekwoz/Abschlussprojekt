@@ -1,4 +1,14 @@
-\documentclass[state=Report]{mcidoc}
+% Layout aligned with the Elektrotechnik-II laboratory report template.
+\PassOptionsToPackage{table}{xcolor}
+\documentclass[
+  state       = Report,
+  lang        = DE,
+  degree      = BSc,
+  dept        = MECH,
+  bib-active  = false,
+  bib-style   = ieee,
+  column-type = one,
+]{mcidoc}
 
 \usepackage{mcidoc-local}
 \input{metadata.tex}
@@ -8,11 +18,19 @@
 
 \graphicspath{{figures/generated/}{figures/architecture/}}
 
-\begin{Abstract}{DE}
+\newcommand{\ReportSummary}{%
 Das Abschlussprojekt implementiert eine datengetriebene E-Bike-Simulation auf Basis realer GPS-Streckendaten. Aus einer semikolonseparierten CSV-Datei werden Zeit, Position, Hoehe und Temperatur eingelesen und in Strecke, Geschwindigkeit, Beschleunigung, Steigung und Kurs umgerechnet. Darauf aufbauend berechnet das Programm die fuer die Fahrt benoetigte Antriebskraft, Leistung, das Raddrehmoment und den Motorstrom. Eine zeitbasierte Glättung der Geschwindigkeit kann optional aktiviert werden, um GPS-Rauschen und starke Beschleunigungsspitzen zu reduzieren. Die Simulation fuehrt ein LiPo- und ein NMC-Akkupack mit derselben Fahrstrecke durch und speichert den Verlauf von Leistung, Drehmoment, Strom, Spannung und Ladezustand. Fuer den vorliegenden Datensatz ergibt sich eine Strecke von 94.27\,km, eine Fahrzeit von 4.55\,h und ein End-SoC von 0\,\% fuer beide Akkutypen, weil der Akku im Verlauf der Fahrt leer wird.
-\end{Abstract}
+}
 
 \begin{document}
+
+\MakeTitlePage
+\TableOfContents
+
+\chapter*{Zusammenfassung}
+\addcontentsline{toc}{chapter}{Zusammenfassung}
+\ReportSummary
+\clearpage
 
 \include{chapters/01_einleitung}
 \include{chapters/02_anforderungen}

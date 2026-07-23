@@ -9,8 +9,18 @@
 \RequirePackage{graphicx}
 \RequirePackage{pgfplots}
 \RequirePackage{csquotes}
+\RequirePackage{amsmath}
+\RequirePackage{amssymb}
+\RequirePackage{float}
 \usetikzlibrary{positioning,arrows.meta,fit}
 \pgfplotsset{compat=1.18}
+
+\sisetup{
+  locale = DE,
+  per-mode = symbol,
+  detect-all,
+}
+\DeclareSIUnit{\ohm}{\Omega}
 
 \lstdefinestyle{reportstyle}{
   basicstyle=\ttfamily\small,

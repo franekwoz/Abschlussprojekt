@@ -45,7 +45,7 @@ Komponente & Verantwortung \\
 \toprule
 Klasse oder Funktion & Oeffentliche Methoden und Signaturen \\
 \midrule
-\texttt{GPSTrack} & \texttt{GPSTrack(pfad: str | Path, smoothing\_config: SpeedSmoothingConfig | None = None)}, \texttt{gesamtstrecke\_km()}, \texttt{durchschnittsgeschwindigkeit\_kmh()}, \texttt{gesamtzeit\_s()}, \texttt{hoehenmeter\_anstieg()}, \texttt{hoehenmeter\_abstieg()}, \texttt{haufigste\_kompassrichtung()}, \texttt{kennzahlen\_ausgeben()}, \texttt{smoothing\_kennzahlen()}, \texttt{karte\_erstellen(...)} \\
+\texttt{GPSTrack} & \texttt{GPSTrack(pfad: str \textbar{} Path, smoothing\_config: SpeedSmoothingConfig \textbar{} None = None)}, \texttt{gesamtstrecke\_km()}, \texttt{durchschnittsgeschwindigkeit\_kmh()}, \texttt{gesamtzeit\_s()}, \texttt{hoehenmeter\_anstieg()}, \texttt{hoehenmeter\_abstieg()}, \texttt{haufigste\_kompassrichtung()}, \texttt{kennzahlen\_ausgeben()}, \texttt{smoothing\_kennzahlen()}, \texttt{karte\_erstellen(...)} \\
 \texttt{SpeedSmoothingConfig} & \texttt{from\_yaml(path)}, Attribut \texttt{max\_reasonable\_speed\_ms} \\
 \texttt{EBike} & \texttt{from\_yaml(pfad)}, \texttt{luftwiderstand\_N(...)}, \texttt{hangabtriebskraft\_N(...)}, \texttt{beschleunigungskraft\_N(...)}, \texttt{rollwiderstand\_N(...)}, \texttt{antriebskraft\_N(...)}, \texttt{leistung\_W(...)}, \texttt{drehmoment\_Nm(...)}, \texttt{punkt\_auswerten(...)} \\
 \texttt{Motor} & \texttt{Motor(motorkonstante\_Nm\_A: float = 1.5)}, \texttt{get\_current\_draw(torque\_Nm: float)} \\
