@@ -1,7 +1,7 @@
 \chapter{Softwarearchitektur und OOP}
 \label{ch:softwarearchitektur}
 
-Die Architektur trennt Datenquelle, physikalisches Modell, Energieversorgung und Visualisierung klar voneinander. Die Klassen arbeiten über Assoziationen und Vererbung zusammen, jede bleibt aber für ihren eigenen Bereich zuständig.
+Die Architektur trennt Datenquelle, physikalisches Modell, Energieversorgung, Visualisierung und Web-Oberfläche klar voneinander. Die Klassen arbeiten über Assoziationen und Vererbung zusammen, jede bleibt aber für ihren eigenen Bereich zuständig.
 
 \section{Objektorientierte Struktur}
 
@@ -61,4 +61,6 @@ Datenverarbeitung und Simulation sind entkoppelt. Das Programm liest die CSV, be
 
 \section{Ein gemeinsamer Service-Layer für CLI und Web-App}
 
-Sowohl \texttt{main.py} als auch die Web-Anwendung (Kapitel~\ref{ch:erweiterungen-detail}) führen dieselbe Simulation aus, sollen sich aber nicht in zwei parallelen Implementierungen unterscheiden. Deshalb liegt die eigentliche Ablauflogik -- Track laden, E-Bike/Motor/Akkus erzeugen, den Simulator für jeden gewählten Akkutyp laufen lassen, Kennzahlen zusammenfassen und optional Plots/Karten/CSV-Dateien schreiben -- gebündelt in einer einzigen Funktion, \texttt{run\_simulation()} in \texttt{webapp/services/simulation\_service.py}. \texttt{main.py} ruft diese Funktion für den Kommandozeilenlauf auf, \texttt{webapp/routes.py} ruft dieselbe Funktion für einen Browser-Request auf. Änderungen an der Simulationslogik müssen so nur an einer Stelle gepflegt werden, und CLI und Web-App können nicht auseinanderlaufen. Die Web-Routen selbst (\texttt{routes.py}) enthalten dagegen keine Simulationslogik, sondern nur Formularverarbeitung, Datei-Uploads und das Rendern von Ergebnisseiten -- eine weitere Ausprägung derselben Trennung von Ablaufsteuerung und Fachlogik wie beim Simulator selbst.
+Sowohl \texttt{main.py} als auch die Flask-Anwendung nutzen denselben Simulationsservice in \texttt{webapp/services/simulation\_service.py}. Dort wird die Strecke geladen, das E-Bike-Modell aufgebaut, der Simulator für die gewählten Akkus ausgeführt und das Ergebnis zusammengefasst. Die Web-Routen in \texttt{webapp/routes.py} übernehmen nur Formularverarbeitung, Uploads, Ergebnisanzeige und den Aufruf von \texttt{run\_simulation()} beziehungsweise \texttt{run\_parameter\_study()}; sie enthalten selbst keine zweite Simulation.
+
+\texttt{app.py} startet die Flask-Anwendung über \texttt{create\_app()} aus \texttt{webapp/\_\_init\_\_.py}. Die Blueprint-Routen erzeugen pro Lauf ein eigenes Verzeichnis unter \texttt{output/web/} und lesen die dort erzeugten CSV-, JSON- und Karten-Dateien wieder ein.

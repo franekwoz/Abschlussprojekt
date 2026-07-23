@@ -1,19 +1,17 @@
 \chapter{Tests und Validierung}
 \label{ch:tests}
 
-Das Projekt enthält zwei Testdateien. Sie prüfen Konfiguration und Verhalten der Geschwindigkeitsglättung sowie die Integration mit \texttt{GPSTrack} und dem Simulator. Statt des realen, über 2000 Punkte langen Datensatzes bauen die Tests kleine, synthetische GPS-CSV-Dateien mit genau bekannten Zeit- und Distanzwerten. Damit lässt sich für jeden Testfall (Ausreisser, kurzes Intervall, grosse Zeitlücke, ...) gezielt und deterministisch prüfen, ob die Glättung genau das erwartete Verhalten zeigt -- mit echten, teils unregelmäßigen Fahrtdaten wäre das erwartete Ergebnis nicht eindeutig vorhersagbar.
+Das Projekt enthält drei Testdateien. Sie prüfen Konfiguration und Verhalten der Geschwindigkeitsglättung, die Integration mit \texttt{GPSTrack} und dem Simulator sowie das Verhalten der Web-Anbindung. Statt des realen, über 2000 Punkte langen Datensatzes bauen die Tests kleine, synthetische GPS-CSV-Dateien mit genau bekannten Zeit- und Distanzwerten. Damit lässt sich für jeden Testfall gezielt und deterministisch prüfen, ob die Glättung, die Routenverarbeitung und die Web-Rückgaben das erwartete Verhalten zeigen.
 
 \section{Ausgeführter Testbefehl}
 
-Die Tests laufen mit:
-
 \begin{lstlisting}
-python -m unittest discover -s tests -v
+python -m pytest -q
 \end{lstlisting}
 
 \section{Ergebnis}
 
-Die Test-Suite hat 14 Einzeltests, alle erfolgreich. Abgedeckt sind Konfigurationsladung, Aktivierung/Deaktivierung der Glättung, konstante Geschwindigkeit, Ausreisser, kurze Intervalle, grosse Zeitlücken, unregelmäßige Zeitabstände und die Kompatibilität mit dem Simulator.
+Die Test-Suite hat 21 Einzeltests. Abgedeckt sind Konfigurationsladung, Aktivierung und Deaktivierung der Glättung, konstante Geschwindigkeit, Ausreisser, kurze Intervalle, grosse Zeitlücken, unregelmäßige Zeitabstände, die Kompatibilität mit dem Simulator, die Web-Simulation, die Geocoding- und Wetterzweige sowie die Erkennung vollständiger und unvollständiger Routen.
 
 \begin{table}[htbp]
 \centering
@@ -31,10 +29,13 @@ Kurzes Intervall & Sehr kleine Zeitabstände werden nicht als gültige Stützste
 Grosse Zeitlücke & Neue Segmente beginnen an den richtigen Stellen, ohne über die Lücke zu interpolieren. \\
 Unregelmäßige Intervalle & Der zeitabhängige exponentielle Faktor reagiert auf unterschiedliche Zeitabstände. \\
 Simulator-Kompatibilität & \texttt{EBikeSimulator} verarbeitet das Track-DataFrame mit den aktiven Spalten korrekt. \\
+Web-Routing & Die Web-Route übergibt die erwarteten Formularwerte an den gemeinsamen Simulationsservice. \\
+Orts- und Wetterdaten & Die Simulation arbeitet ohne optionale Abfragen weiter, auch wenn sie deaktiviert oder fehlerhaft sind. \\
+Routenabschluss & Vollständige und unvollständige Fahrten werden anhand der simulierten Punkte korrekt erkannt. \\
 \bottomrule
 \end{tabularx}
 \end{table}
 
 \section{Interpretation}
 
-Die Tests prüfen nicht die volle numerische Genauigkeit, sondern das erwartete Verhalten an den kritischen Stellen. Sie sichern vor allem ab, dass die Glättung keine pauschale Begrenzung einbaut und der Simulator die aktiven Spalten korrekt weiterverarbeitet.
+Die Tests prüfen nicht die volle numerische Genauigkeit, sondern das erwartete Verhalten an den kritischen Stellen. Sie sichern vor allem ab, dass die Glättung keine pauschale Begrenzung einbaut, der Simulator die aktiven Spalten korrekt weiterverarbeitet und die Web-Anbindung die Ergebnisse aus dem gemeinsamen Service übernimmt.

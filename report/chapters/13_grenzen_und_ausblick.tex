@@ -5,15 +5,15 @@ Das aktuelle Modell ist bewusst schlank gehalten. Es beschreibt die im Quellcode
 
 \section{Aktuell implementiert}
 
-Implementiert sind GPS-basierte Kinematik, Fahrzeugkraefte, Motorstrom, Akku-SoC, Temperaturkorrektur, Luftdichteabschätzung und die Behandlung eines Bremswiderstandsfalls bei zu hohem Ladestrom.
+Implementiert sind GPS-basierte Kinematik, Fahrzeugkraefte, Motorstrom, Akku-SoC, Temperaturkorrektur, Luftdichteabschätzung, optionale Orts- und Wetterdaten sowie die Behandlung eines Bremswiderstandsfalls bei zu hohem Ladestrom. Die Web-Anwendung und die Kommandozeile verwenden denselben Simulationsservice, aber unterschiedliche Bedienoberflächen.
 
 \section{Modellannahmen}
 
-Mehrere Vereinfachungen sind fuer die aktuelle Version wesentlich. Die Fahrerleistung wird nicht separat modelliert. Der Motor wird nur ueber eine konstante Motorkonstante beschrieben. Der Luftwiderstand nutzt eine einfache quadratische Formel. Die thermische Akkuphysik wird ueber lineare Korrekturfaktoren angenaehert. GPS-Hoehe und GPS-Position werden direkt als Eingangsrealitaet akzeptiert, obwohl beide Messgroessen verrauscht sein koennen.
+Mehrere Vereinfachungen sind fuer die aktuelle Version wesentlich. Die Fahrerleistung wird nicht separat modelliert. Der Motor wird nur ueber eine konstante Motorkonstante beschrieben. Der Luftwiderstand nutzt eine einfache quadratische Formel. Die thermische Akkuphysik wird ueber lineare Korrekturfaktoren angenaehert. GPS-Hoehe und GPS-Position werden direkt als Eingangsrealitaet akzeptiert, obwohl beide Messgroessen verrauscht sein koennen. Orts- und Wetterdaten hängen von externen Diensten ab und werden bei Fehlern bewusst nicht als harter Abbruch behandelt.
 
 \section{Moegliche Erweiterungen}
 
-Naheliegende Erweiterungen waeren ein Windmodell, ein detaillierteres Motorwirkungsgradmodell, eine echte Rekuperationslogik mit begrenzter Ladeleistung, eine mechanische Fahrerleistung, eine Validierung gegen reale Sensordaten sowie eine ausgereiftere Filterparametrierung. Auch die Akkumodelle koennten um temperatur- und lastabhaengige Kennlinien erweitert werden.
+Naheliegende Erweiterungen waeren ein Windmodell, ein detaillierteres Motorwirkungsgradmodell, eine echte Rekuperationslogik mit begrenzter Ladeleistung, eine mechanische Fahrerleistung, eine Validierung gegen reale Sensordaten sowie eine ausgereiftere Filterparametrierung. Auch die Akkumodelle koennten um temperatur- und lastabhaengige Kennlinien erweitert werden. Eine serverseitige PDF-Erzeugung fuer Simulationsergebnisse ist im aktuellen Stand nicht Bestandteil des Projekts.
 
 \section{Einordnung}
 

@@ -1,8 +1,8 @@
 \chapter{Fazit}
 \label{ch:fazit}
 
-Das Abschlussprojekt zeigt, wie sich eine echte GPS-Strecke zu einer reproduzierbaren E-Bike-Energiesimulation ausbauen lässt. Die Software trennt Datenverarbeitung, Fahrzeugphysik, Motorlogik, Akkuverhalten und Visualisierung klar voneinander -- bis hin zu Karten, Plots und Logs. Der Bericht selbst wird mit \texttt{latexmk} automatisiert erstellt \cite{latexmk_docs}.
+Das Abschlussprojekt zeigt, wie sich eine echte GPS-Strecke zu einer reproduzierbaren E-Bike-Energiesimulation ausbauen lässt. Die Software trennt Datenverarbeitung, Fahrzeugphysik, Motorlogik, Akkuverhalten, Visualisierung und Web-Oberfläche klar voneinander -- bis hin zu Karten, Plots und Logs. Der Bericht selbst wird mit \texttt{latexmk} automatisiert erstellt \cite{latexmk_docs}.
 
-Besonders wichtig ist die Polymorphie der Akkumodelle: LiPo und NMC nutzen dieselbe Pipeline, unterscheiden sich aber in Kennlinie und Innenwiderstand. Zusammen mit der optionalen Glättung zeigt sich so gut, wie empfindlich Leistung und Strom auf GPS-Rauschen reagieren.
+Besonders wichtig ist die Polymorphie der Akkumodelle: LiPo und NMC nutzen dieselbe Pipeline, unterscheiden sich aber in Kennlinie und Innenwiderstand. Zusammen mit der optionalen Glättung zeigt sich so gut, wie empfindlich Leistung und Strom auf GPS-Rauschen reagieren. Die Web-Anwendung verwendet dieselbe Simulationslogik wie die Kommandozeile, wodurch beide Einstiegspunkte denselben fachlichen Stand abbilden.
 
-Im aktuellen Datensatz ist die Fahrt so anspruchsvoll, dass beide Akkus vor Streckenende leer sind. Genau das macht den Bericht wertvoll: Die Simulation liefert nicht nur Bilder, sondern eine klare Aussage über das Zusammenspiel von Strecke, Modell und Energiespeicher.
+Im aktuellen Datensatz ist die Fahrt so anspruchsvoll, dass beide Akkus vor Streckenende leer sind. Genau das macht den Bericht wertvoll: Die Simulation liefert nicht nur Bilder, sondern eine klare Aussage über das Zusammenspiel von Strecke, Modell und Energiespeicher. Die Grenzen des aktuellen Standes liegen vor allem in den vereinfachten Modellannahmen und den optionalen externen Diensten für Orts- und Wetterdaten.

@@ -1,112 +1,49 @@
 \chapter{Projektstruktur}
 \label{ch:projektstruktur}
 
-Das Repository ist flach organisiert: Jedes Modul hat eine klar benannte Aufgabe. Das erleichtert Simulation und Wartung, weil GPS-Verarbeitung, Fahrzeugphysik, Motorlogik, Akkuverhalten und Visualisierung getrennt bleiben.
+Das Repository ist klar aufgeteilt: Die fachliche Logik liegt in einzelnen Python-Modulen, die Web-Anwendung in \texttt{webapp/} und die Dokumentation in \texttt{report/}. So bleiben GPS-Verarbeitung, Fahrzeugphysik, Motorlogik, Akkuverhalten, Web-Oberfläche und Ausgaben voneinander getrennt.
 
 \section{Übersicht der Komponenten}
 
-\begin{table}[htbp]
-\centering
-\caption{Wesentliche Komponenten des Repositories und ihre Verantwortung}
-\label{tab:komponenten}
-\begin{tabularx}{\textwidth}{@{}lX@{}}
-\toprule
-Komponente & Verantwortung \\
-\midrule
-\texttt{main.py} & Programmstart, Logging, Laden der Konfiguration, Erzeugen von Track, Fahrzeug, Motor und Akkus sowie Start der Simulation. \\
-\texttt{gps\_track.py} & Einlesen der GPS-CSV, Berechnung von Distanz, Geschwindigkeit, Steigung, Kurs, Kompassrichtung und Beschleunigung sowie Kartenerzeugung. \\
-\texttt{speed\_smoothing.py} & Laden der Glättungskonfiguration, Segmentierung und zeitbasierte Glättung der Geschwindigkeitskurve. \\
-\texttt{ebike.py} & Fahrzeugphysik mit Luft-, Hang-, Roll- und Beschleunigungsanteilen. \\
-\texttt{motor.py} & Umrechnung von Drehmoment in Motorstrom über die Motorkonstante. \\
-\texttt{ebike\_simulator.py} & Schrittweise Simulation der Fahrt und Aufzeichnung der Ergebnisprofile. \\
-\texttt{battery\_base.py} & Abstrakte Schnittstelle für Batteriemodelle. \\
-\texttt{battery\_pack.py} & Gemeinsame Akku-Funktionalität, SoC-Integration, Temperaturkorrektur und Begrenzung. \\
-\texttt{lipo\_battery.py} & LiPo-spezifische OCV-Kennlinie und Packparametrisierung. \\
-\texttt{nmc\_battery.py} & NMC-spezifische OCV-Kennlinie und Packparametrisierung. \\
-\texttt{akkutemperatur.py} & Temperaturabhängige Korrektur von Innenwiderstand und Kapazität. \\
-\texttt{luftdichte.py} & Schätzung der Luftdichte aus Höhe und Temperatur. \\
-\texttt{bremswiderstand.py} & Umrechnung von überschüssigem Strom in dissipierte Leistung. \\
-\texttt{plot\_utils.py} & Matplotlib-Plots für Höhenprofil, Zeitverläufe und SoC-Vergleich. \\
-\texttt{wetterdaten.py} & Abfrage von Temperatur, Wind und Niederschlag für Streckenpunkte über die Open-Meteo-API. \\
-\texttt{app.py} / \texttt{webapp/} & Flask-Web-Anwendung: Simulation und Parameterstudien im Browser bedienbar. \\
-\texttt{data/} & Eingabedaten und Konfigurationsdateien. \\
-\texttt{tests/} & Unittest-Suite für Glättung, Kinematik und Simulator-Kompatibilität. \\
-\texttt{output/} & Laufzeit-Ausgaben des Programms. \\
-\bottomrule
-\end{tabularx}
-\end{table}
+Die wichtigsten Bausteine des Projekts sind:
+
+\begin{itemize}
+\item \texttt{main.py}: Einstiegspunkt für die Kommandozeile; lädt Konfigurationen und startet die Simulation.
+\item \texttt{app.py}: Startet die Flask-Anwendung über \texttt{create\_app()}.
+\item \texttt{gps\_track.py}: Liest GPS-Daten ein und berechnet Distanz, Geschwindigkeit, Steigung, Kurs und Karten.
+\item \texttt{speed\_smoothing.py}: Lädt die Glättungskonfiguration und glättet die Geschwindigkeitskurve zeitbasiert.
+\item \texttt{ebike.py}: Enthält die Fahrphysik mit Luft-, Hang-, Roll- und Beschleunigungsanteilen.
+\item \texttt{motor.py}: Rechnet Drehmoment in Motorstrom um.
+\item \texttt{ebike\_simulator.py}: Führt die Fahrt Schritt für Schritt aus und schreibt Ergebnisprofile.
+\item \texttt{battery\_base.py} und \texttt{battery\_pack.py}: Abstrakte Akku-Schnittstelle und gemeinsame Implementierung.
+\item \texttt{lipo\_battery.py} und \texttt{nmc\_battery.py}: Akkutypen mit spezifischer OCV-Kennlinie und Parametern.
+\item \texttt{akkutemperatur.py}: Temperaturkorrektur von Innenwiderstand und Kapazität.
+\item \texttt{luftdichte.py}: Schätzt die Luftdichte aus Höhe und Temperatur.
+\item \texttt{bremswiderstand.py}: Berechnet die dissipierte Leistung bei Rekuperationsbegrenzung.
+\item \texttt{plot\_utils.py}: Erzeugt Diagramme für Verlauf und Vergleich.
+\item \texttt{wetterdaten.py}: Ruft Wetterdaten über die Open-Meteo-API ab.
+\item \texttt{webapp/}: Flask-Blueprint, Services, Templates und Web-Ausgaben.
+\item \texttt{tests/}: Automatisierte Tests für Glättung, GPS-Verarbeitung und Web-Anbindung.
+\item \texttt{data/}: Eingabedaten und Konfigurationsdateien.
+\item \texttt{output/}: Laufzeit-Ausgaben des Programms.
+\item \texttt{report/}: LaTeX-Bericht und erzeugte PDF-Dokumentation.
+\end{itemize}
 
 \section{Zentrale Klassen und Funktionen}
 
-{\small
-\begin{xltabular}{\textwidth}{@{}lp{4.4cm}X@{}}
-\caption{Ausgewählte Klassen und ihre öffentlichen Methoden mit Kurzkommentar}
-\label{tab:klassen-methoden}\\
-\toprule
-Klasse & Methode / Attribut & Kommentar \\
-\midrule
-\endfirsthead
-\caption[]{Ausgewählte Klassen und ihre öffentlichen Methoden mit Kurzkommentar (Fortsetzung)}\\
-\toprule
-Klasse & Methode / Attribut & Kommentar \\
-\midrule
-\endhead
-\midrule
-\multicolumn{3}{r}{\textit{Fortsetzung auf der nächsten Seite}} \\
-\endfoot
-\bottomrule
-\endlastfoot
-\texttt{GPSTrack} & \texttt{GPSTrack(pfad, smoothing\_config=None)} & Konstruktor; liest die CSV ein und berechnet daraus sofort die gesamte Kinematik (Distanz, Geschwindigkeit, Steigung, Kurs, Beschleunigung). \\
- & \texttt{gesamtstrecke\_km()} & Summiert alle Distanzsegmente \texttt{distanz\_m} zur Gesamtstrecke. \\
- & \texttt{durchschnittsgeschwindigkeit\_kmh()} & Gesamtstrecke geteilt durch Gesamtzeit. \\
- & \texttt{gesamtzeit\_s()} & Zeitspanne zwischen erstem und letztem GPS-Punkt. \\
- & \texttt{hoehenmeter\_anstieg()} & Summe aller positiven Höhendifferenzen \(\Delta h_i\). \\
- & \texttt{hoehenmeter\_abstieg()} & Summe aller negativen Höhendifferenzen (als Betrag). \\
- & \texttt{haufigste\_kompassrichtung()} & Häufigster Wert der Spalte \texttt{kompassrichtung}. \\
- & \texttt{kennzahlen\_ausgeben()} & Schreibt die wichtigsten Streckenkennzahlen in Konsole und Logdatei. \\
- & \texttt{smoothing\_kennzahlen()} & Vergleicht Roh- und geglättete Geschwindigkeit/Beschleunigung (z.\,B. maximale Differenz). \\
- & \texttt{karte\_erstellen(...)} & Erstellt eine nach Geschwindigkeit eingefärbte interaktive HTML-Karte (Folium). \\
- & \texttt{orte\_ermitteln(anzahl\_wegpunkte=8)} & Reverse Geocoding ausgewählter Streckenpunkte zu Adressen über Nominatim/geopy. \\
- & \texttt{karte\_erstellen\_geopandas(...)} & Statische, farbcodierte GIS-Karte (GeoPandas/Matplotlib) als Alternative zur Folium-Karte. \\
- & \texttt{karte\_erstellen\_geopandas\_einfach(...)} & Vereinfachte GeoPandas-Karte ohne Einfärbung, gesamte Strecke als ein Liniensegment. \\
-\midrule
-\texttt{SpeedSmoothingConfig} & \texttt{from\_yaml(path)} & Lädt die YAML-Konfiguration und prüft die Werte auf Plausibilität. \\
- & Attribut \texttt{max\_reasonable\_speed\_ms} & Aus \texttt{max\_reasonable\_speed\_kmh} umgerechnete Plausibilitätsgrenze in m/s. \\
-\midrule
-\texttt{EBike} & \texttt{from\_yaml(pfad)} & Erzeugt ein \texttt{EBike}-Objekt aus \texttt{data/bike\_config.yaml} inkl. Default-Werten. \\
- & \texttt{luftwiderstand\_N(v, rho)} & Luftwiderstandskraft \(F_{\mathrm{Luft}} = \tfrac{1}{2}\rho\, c_{\mathrm{w}}A\, v^2\). \\
- & \texttt{hangabtriebskraft\_N(phi)} & Hangabtriebskraft \(F_{\mathrm{Hang}} = m g \sin(\varphi)\) aus der Steigung. \\
- & \texttt{beschleunigungskraft\_N(a)} & Trägheitskraft \(F_{\mathrm{Beschl.}} = m a\). \\
- & \texttt{rollwiderstand\_N(phi)} & Rollwiderstand \(F_{\mathrm{Roll}} = c_{\mathrm{R}} m g \cos(\varphi)\). \\
- & \texttt{antriebskraft\_N(v, a, phi, rho)} & Summe der vier Einzelkräfte; zentrale Kraftbilanz des Fahrzeugmodells. \\
- & \texttt{leistung\_W(F, v)} & Mechanische Leistung \(P = F v\). \\
- & \texttt{drehmoment\_Nm(F)} & Raddrehmoment \(M = F r\) mit dem Radradius \(r\). \\
- & \texttt{punkt\_auswerten(v, a, phi, rho)} & Bündelt Kraft, Leistung und Drehmoment für einen GPS-Punkt in einem Aufruf; wird vom Simulator pro Zeitschritt genutzt. \\
-\midrule
-\texttt{Motor} & \texttt{Motor(motorkonstante\_Nm\_A=1.5)} & Konstruktor; speichert die Motorkonstante \(k_{\mathrm{m}}\) in Nm/A. \\
- & \texttt{get\_current\_draw(torque\_Nm)} & Rechnet Drehmoment in Motorstrom um: \(I = M / k_{\mathrm{m}}\). \\
-\midrule
-\texttt{BatteryBase} & \texttt{apply\_current(...)}, \texttt{voltage(...)} & Abstrakte Methoden (ABC); legen nur fest, dass jede Akku-Klasse SoC-Update und Spannungsabfrage bereitstellen muss. \\
-\midrule
-\texttt{BatteryPack} & \texttt{set\_temperatur(temperature\_c)} & Setzt die aktuelle Akkutemperatur, die anschliessend \(R_{\mathrm{int}}\) und \(C_{\mathrm{nom}}\) korrigiert. \\
- & \texttt{apply\_current(current, duration)} & Konkrete SoC-Integration inkl. Ladungs-/Entladungsbegrenzung, Bremswiderstandslogik und Fehlermeldung bei leerem Akku. \\
- & \texttt{voltage(current)} & Klemmenspannung \(U = U_{\mathrm{OC}}(\mathrm{SoC}) - R_{\mathrm{int}} I\), temperaturkorrigiert. \\
- & \texttt{is\_empty()} / \texttt{is\_full()} & Prüft, ob SoC an der unteren bzw. oberen Grenze (0 bzw. 1) liegt. \\
-\midrule
-\texttt{LiPoBatteryPack} & \texttt{LiPoBatteryPack(capacity\_nom\_Ah, initial\_soc=1.0, n\_parallel=1)} & Konstruktor; skaliert Kapazität und Innenwiderstand mit \texttt{n\_parallel}. \\
- & \texttt{\_ocv(soc)} & Überschreibt die Leerlaufspannung durch lineare Interpolation der LiPo-Messkennlinie (\texttt{numpy.interp}). \\
-\texttt{NMCBatteryPack} & \texttt{NMCBatteryPack(capacity\_nom\_Ah, initial\_soc=1.0, n\_parallel=1)} & Konstruktor; analog zu \texttt{LiPoBatteryPack}. \\
- & \texttt{\_ocv(soc)} & Analog für die NMC-spezifische Messkennlinie. \\
-\midrule
-\texttt{EBikeSimulator} & \texttt{EBikeSimulator(track, bike, motor, battery)} & Konstruktor; speichert die vier Objekte per Assoziation, ohne sie zu verändern. \\
- & \texttt{simulate()} & Läuft den GPS-Track Punkt für Punkt ab, berechnet Kraft/Leistung/Strom und wendet ihn auf den Akku an; liefert das Ergebnis-DataFrame. \\
- & \texttt{maximalleistung\_W()} & Maximum des aufgezeichneten Leistungsprofils. \\
- & \texttt{bremswiderstand\_energie\_Wh()} & Über die gesamte Fahrt integrierte, am Bremswiderstand dissipierte Energie. \\
- & \texttt{endladezustand\_prozent()} & Letzter Wert des SoC-Profils in Prozent. \\
- & \texttt{zusammenfassung\_ausgeben()} & Gibt Akkuzustand, Maximalleistung, End-SoC und dissipierte Energie auf der Konsole aus. \\
-\end{xltabular}
-}
+Die zentralen Klassen und Funktionen lassen sich wie folgt zusammenfassen:
+
+\begin{itemize}
+\item \texttt{GPSTrack}: Liest die CSV ein und berechnet sofort die gesamte Kinematik. Wichtige Methoden sind \texttt{gesamtstrecke\_km()}, \texttt{durchschnittsgeschwindigkeit\_kmh()}, \texttt{gesamtzeit\_s()}, \texttt{hoehenmeter\_anstieg()}, \texttt{hoehenmeter\_abstieg()}, \texttt{kennzahlen\_ausgeben()}, \texttt{smoothing\_kennzahlen()}, \texttt{karte\_erstellen(...)} und \texttt{orte\_ermitteln(anzahl\_wegpunkte=8)}.
+\item \texttt{SpeedSmoothingConfig}: Lädt die Glättungskonfiguration über \texttt{from\_yaml(path)} und stellt die umgerechnete Plausibilitätsgrenze \texttt{max\_reasonable\_speed\_ms} bereit.
+\item \texttt{EBike}: Erzeugt ein Fahrzeugobjekt aus \texttt{data/bike\_config.yaml}. Dazu gehören \texttt{antriebskraft\_N(v, a, phi, rho)}, \texttt{leistung\_W(F, v)} und \texttt{drehmoment\_Nm(F)}.
+\item \texttt{Motor}: Speichert die Motorkonstante \(k_{\mathrm{m}}\) und rechnet mit \texttt{get\_current\_draw(torque\_Nm)} Drehmoment in Strom um.
+\item \texttt{BatteryBase}: Definiert die abstrakten Methoden \texttt{apply\_current(...)} und \texttt{voltage(...)} für Akku-Modelle.
+\item \texttt{BatteryPack}: Enthält die gemeinsame Akku-Logik mit \texttt{set\_temperatur(temperature\_c)}, \texttt{apply\_current(current, duration)}, \texttt{voltage(current)}, \texttt{is\_empty()} und \texttt{is\_full()}.
+\item \texttt{LiPoBatteryPack} und \texttt{NMCBatteryPack}: Spezialisieren \texttt{BatteryPack} mit eigener OCV-Kennlinie über \texttt{\_ocv(soc)} und individuellen Packparametern.
+\item \texttt{EBikeSimulator}: Verknüpft Track, Fahrzeug, Motor und Akku. Die Methode \texttt{simulate()} führt die Strecke punktweise aus; weitere Auswertungen liefern \texttt{maximalleistung\_W()}, \texttt{bremswiderstand\_energie\_Wh()}, \texttt{endladezustand\_prozent()} und \texttt{zusammenfassung\_ausgeben()}.
+\end{itemize}
 
 \section{Dateien und Ausgaben}
 
-Die Eingabedaten liegen unter \texttt{data/}. Ergebnisse entstehen zur Laufzeit unter \texttt{output/}, Unterordner für Plots werden dabei automatisch angelegt. Für den Bericht wurden die PNGs zusätzlich nach \texttt{report/figures/generated/} kopiert, damit der PDF-Build unabhängig vom letzten Programmlauf funktioniert.
+Die Eingabedaten liegen unter \texttt{data/}. Ergebnisse entstehen zur Laufzeit unter \texttt{output/}; die Web-Anwendung nutzt eigene Unterverzeichnisse unter \texttt{output/web/}. Für den Bericht werden die PNGs zusätzlich nach \texttt{report/figures/generated/} kopiert, damit der PDF-Build unabhängig vom letzten Programmlauf funktioniert.
